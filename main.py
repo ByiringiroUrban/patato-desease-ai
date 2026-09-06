@@ -1,7 +1,7 @@
 import argparse
 from pathlib import Path
 
-from src.data.loader import inspect_dataset
+from src.data.loader import inspect_dataset, get_raw_data_dir
 from src.data.preprocessing import create_splits
 from src.training.train import train_model
 from src.training.evaluate import evaluate_model
@@ -23,7 +23,7 @@ def main():
     args = parser.parse_args()
 
     if args.command == "inspect":
-        inspect_dataset(Path("data/raw"))
+        inspect_dataset(get_raw_data_dir())
     elif args.command == "split":
         create_splits()
     elif args.command == "train":

@@ -1,9 +1,18 @@
 from pathlib import Path
 from collections import Counter
 from PIL import Image
+import kagglehub
 
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+
+
+def get_raw_data_dir() -> Path:
+    """Downloads the potato disease dataset via kagglehub if not cached, and returns the path."""
+    print("Checking dataset via kagglehub...")
+    path = kagglehub.dataset_download("aarishasifkhan/plantvillage-potato-disease-dataset")
+    # The actual images are inside the 'PlantVillage' subfolder
+    return Path(path) / "PlantVillage"
 
 
 def find_images(root: Path):

@@ -2,10 +2,10 @@ from pathlib import Path
 import random
 import shutil
 
-from src.data.loader import find_images
+from src.data.loader import find_images, get_raw_data_dir
 
 
-RAW_DIR = Path("data/raw")
+RAW_DIR_FALLBACK = Path("data/raw")
 SPLIT_DIR = Path("data/splits")
 
 TRAIN_RATIO = 0.70
@@ -15,12 +15,14 @@ SEED = 42
 
 
 def create_splits(
-    raw_dir: Path = RAW_DIR,
+    raw_dir: Path = None,
     split_dir: Path = SPLIT_DIR,
     train_ratio: float = TRAIN_RATIO,
     val_ratio: float = VAL_RATIO,
     seed: int = SEED,
 ):
+    if raw_dir is None:
+        raw_dir = get_raw_data_dir()
     if abs(train_ratio + val_ratio + TEST_RATIO - 1.0) > 1e-9:
         raise ValueError("Split ratios must add up to 1.")
 
