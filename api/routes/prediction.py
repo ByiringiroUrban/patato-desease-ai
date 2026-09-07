@@ -1,9 +1,13 @@
 from pathlib import Path
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from typing import List
+from fastapi import APIRouter, File, HTTPException, UploadFile, Depends
+from sqlalchemy.orm import Session
 
-from api.schemas import PredictionResponse
+from api.schemas import PredictionResponse, PredictionHistoryResponse
 from src.inference.predict import predict_image
+from api.database import get_db
+from api.models import PredictionHistory
 
 
 router = APIRouter(tags=["Prediction"])
@@ -13,7 +17,7 @@ MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
 @router.post("/predict", response_model=PredictionResponse)
-async def predict(file: UploadFile = File(...)):
+async def predict(file: UploadFile = File(...), db: Session = Depends(get_db)):
     if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(
             status_code=400,
@@ -33,6 +37,15 @@ async def predict(file: UploadFile = File(...)):
         temp_path.write_bytes(data)
         result = predict_image(str(temp_path))
 
+        db_record = PredictionHistory(
+            predicted_class=result["class"],
+            confidence=result["confidence"],
+            image_filename=file.filename
+        )
+        db.add(db_record)
+        db.commit()
+        db.refresh(db_record)
+
         return PredictionResponse(
             class_name=result["class"],
             confidence=result["confidence"],
@@ -45,3 +58,8 @@ async def predict(file: UploadFile = File(...)):
         ) from exc
     finally:
         temp_path.unlink(missing_ok=True)
+
+@router.get("/history", response_model=List[PredictionHistoryResponse])
+def get_history(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    records = db.query(PredictionHistory).order_by(PredictionHistory.created_at.desc()).offset(skip).limit(limit).all()
+    return records

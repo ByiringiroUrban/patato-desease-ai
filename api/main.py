@@ -2,7 +2,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.routes.prediction import router as prediction_router
+from api.database import engine
+from api.models import Base
 
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Potato Disease AI API",
