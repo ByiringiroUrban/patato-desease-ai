@@ -122,6 +122,17 @@ body {
   cursor: not-allowed;
 }
 
+.btn-secondary {
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--text-secondary);
+}
+
 .preview-image {
   max-width: 100%;
   border-radius: 8px;

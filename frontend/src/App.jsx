@@ -57,6 +57,15 @@ function App() {
     }
   }
 
+  const handleClear = () => {
+    setSelectedFile(null)
+    setPreviewUrl(null)
+    setPrediction(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
+  }
+
   const triggerFileInput = () => {
     fileInputRef.current.click()
   }
@@ -95,14 +104,35 @@ function App() {
           </div>
           
           <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
-            <button 
-              className="btn" 
-              onClick={handleUpload}
-              disabled={!selectedFile || isUploading}
-              style={{ width: '100%' }}
-            >
-              {isUploading ? <div className="loader"></div> : 'Run Prediction'}
-            </button>
+            {prediction ? (
+              <button 
+                className="btn btn-secondary" 
+                onClick={() => { handleClear(); triggerFileInput(); }}
+                style={{ width: '100%' }}
+              >
+                Analyze Another Image
+              </button>
+            ) : (
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                {selectedFile && (
+                  <button 
+                    className="btn btn-secondary" 
+                    onClick={handleClear}
+                    style={{ flex: 1 }}
+                  >
+                    Clear
+                  </button>
+                )}
+                <button 
+                  className="btn" 
+                  onClick={handleUpload}
+                  disabled={!selectedFile || isUploading}
+                  style={{ flex: selectedFile ? 2 : 1, width: selectedFile ? 'auto' : '100%' }}
+                >
+                  {isUploading ? <div className="loader"></div> : 'Run Prediction'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
