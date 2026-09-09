@@ -16,3 +16,6 @@ kagglehub
 sqlalchemy
 psycopg2
 python-dotenv
+
+passlib[bcrypt]
+PyJWT
