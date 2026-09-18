@@ -14,9 +14,16 @@ app = FastAPI(
     description="Image classification API for potato leaf disease detection.",
 )
 
+origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Restrict this to your frontend domain in production.
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -24,6 +31,16 @@ app.add_middleware(
 
 app.include_router(auth_router, prefix="/api/v1/auth")
 app.include_router(prediction_router, prefix="/api/v1/predictions")
+
+from fastapi import Request
+from fastapi.responses import JSONResponse
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Internal Error: {str(exc)}"},
+    )
 
 
 @app.get("/health")

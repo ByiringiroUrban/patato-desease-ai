@@ -1,28 +1,164 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { Image as ImageIcon, Camera, Mic, ArrowUp } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { 
+  Plus, Image as ImageIcon, Camera, Mic, ArrowUp, AtSign, 
+  Monitor, Sparkles, X, Leaf, ShieldAlert, BarChart3, 
+  FileText, Pill, ChevronDown, Check, Video, HelpCircle, Layers
+} from 'lucide-react';
 
 const PromptInput = ({ onPredictionComplete }) => {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const navigate = useNavigate();
   const [file, setFile] = useState(null);
+  const [promptText, setPromptText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+
+  // Model & Tool States
+  const [selectedModel, setSelectedModel] = useState('Potato Vision ResNet-50');
+  const [showModelDropdown, setShowModelDropdown] = useState(false);
+  const [showDesktopModal, setShowDesktopModal] = useState(false);
+  const [showMoreActions, setShowMoreActions] = useState(false);
+
+  // Voice State
+  const [isListening, setIsListening] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(true);
+  const recognitionRef = useRef(null);
+
+  // Camera State
+  const [showCameraModal, setShowCameraModal] = useState(false);
+  const [cameraStream, setCameraStream] = useState(null);
+  const videoRef = useRef(null);
   const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
+
+  // Initialize Speech Recognition
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onresult = (event) => {
+        let currentTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          currentTranscript += event.results[i][0].transcript;
+        }
+        setPromptText(prev => prev ? `${prev} ${currentTranscript}` : currentTranscript);
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+    } else {
+      setSpeechSupported(false);
+    }
+  }, []);
+
+  // Voice Toggle
+  const toggleVoiceInput = () => {
+    if (!speechSupported) {
+      setError('Voice recognition is not supported in this browser. Please type your prompt.');
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+    } else {
+      setError('');
+      try {
+        recognitionRef.current?.start();
+        setIsListening(true);
+      } catch (err) {
+        console.error('Failed to start speech recognition:', err);
+      }
+    }
+  };
+
+  // Camera Modal Open / Stream Start
+  const startCamera = async () => {
+    setShowCameraModal(true);
+    setError('');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+      });
+      setCameraStream(stream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.error('Camera access failed:', err);
+      setError('Could not access live camera. Using device file picker instead.');
+      setShowCameraModal(false);
+      cameraInputRef.current?.click();
+    }
+  };
+
+  // Stop Camera Stream
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      setCameraStream(null);
+    }
+    setShowCameraModal(false);
+  };
+
+  // Capture Snapshot from Live Video
+  const captureSnapshot = () => {
+    if (!videoRef.current) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = videoRef.current.videoWidth || 640;
+    canvas.height = videoRef.current.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+
+    canvas.toBlob((blob) => {
+      if (blob) {
+        const capturedFile = new File([blob], `camera_leaf_${Date.now()}.jpg`, { type: 'image/jpeg' });
+        setFile(capturedFile);
+        setError('');
+      }
+      stopCamera();
+    }, 'image/jpeg', 0.92);
+  };
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
+      setError('');
     }
   };
 
   const handleTriggerUpload = () => {
-    fileInputRef.current.click();
+    fileInputRef.current?.click();
+  };
+
+  const handleMentionClick = () => {
+    setPromptText(prev => prev.includes('@potato-ai') ? prev : `@potato-ai ${prev}`.trim());
   };
 
   const handleSubmit = async () => {
+    if (!file && !promptText.trim()) {
+      setError('Please attach a potato leaf image or enter a diagnosis prompt.');
+      return;
+    }
+
     if (!file) {
-      setError('Please attach an image first.');
+      setError('Please attach or capture an image of a potato leaf to run AI disease analysis.');
       return;
     }
 
@@ -33,36 +169,72 @@ const PromptInput = ({ onPredictionComplete }) => {
     formData.append('file', file);
 
     try {
-      const response = await axios.post('http://localhost:8000/api/v1/predictions/predict', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const headers = { 'Content-Type': 'multipart/form-data' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      const response = await axios.post('http://localhost:8000/api/v1/predictions/predict', formData, { headers });
       onPredictionComplete(response.data);
       setFile(null);
+      setPromptText('');
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to analyze image.');
+      if (err.response?.status === 401 && !user) {
+        setShowAuthPrompt(true);
+        setError('Authentication required to process image. Please sign in or register.');
+      } else {
+        setError(err.response?.data?.detail || 'Failed to analyze image.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="center-prompt">
-      <h1 className="center-title">What can I identify for you?</h1>
-      
-      <div className="prompt-input-container">
-        <textarea 
-          className="prompt-input" 
-          placeholder={file ? `Attached: ${file.name}` : "Upload a potato leaf image to analyze..."} 
-          readOnly 
-        />
-        
-        {error && <p style={{color: 'var(--error-color)', fontSize: '0.9rem', marginTop: '10px'}}>{error}</p>}
+  const setPresetPrompt = (text) => {
+    setPromptText(text);
+    setError('');
+  };
 
-        <div className="prompt-actions">
-          <div className="prompt-tools">
+  return (
+    <div className="manus-center-container">
+      {/* Plan Badge */}
+      <div className="plan-badge-container">
+        <span className="plan-badge">Free plan</span>
+        <span className="plan-separator">|</span>
+        <button className="upgrade-link" onClick={() => navigate('/register')}>Upgrade</button>
+      </div>
+
+      {/* Main Title */}
+      <h1 className="manus-main-title">What can I do for you?</h1>
+
+      {/* Central Input Box */}
+      <div className="manus-input-card">
+        <textarea 
+          className="manus-textarea" 
+          value={promptText}
+          onChange={(e) => setPromptText(e.target.value)}
+          placeholder={file ? `Attached leaf image: ${file.name}` : "Assign a potato scan task or ask for disease diagnostics..."} 
+          rows={3}
+        />
+
+        {file && (
+          <div className="attached-file-chip">
+            <ImageIcon size={14} />
+            <span>{file.name}</span>
+            <button className="remove-file-btn" onClick={() => setFile(null)}>×</button>
+          </div>
+        )}
+
+        {isListening && (
+          <div className="listening-banner">
+            <span className="listening-dot" />
+            <span>Listening to voice prompt... Speak now</span>
+          </div>
+        )}
+
+        {error && <div className="prompt-error-message">{error}</div>}
+
+        <div className="manus-input-toolbar">
+          <div className="toolbar-left" style={{ position: 'relative' }}>
             <input 
               type="file" 
               ref={fileInputRef} 
@@ -70,45 +242,217 @@ const PromptInput = ({ onPredictionComplete }) => {
               accept="image/jpeg, image/png, image/webp" 
               onChange={handleFileChange}
             />
-            <button className="tool-btn" onClick={handleTriggerUpload} title="Attach Image">
-              <PlusIcon size={18} />
+            <input 
+              type="file" 
+              ref={cameraInputRef} 
+              style={{ display: 'none' }} 
+              accept="image/*" 
+              capture="environment"
+              onChange={handleFileChange}
+            />
+
+            <button className="toolbar-icon-btn" onClick={handleTriggerUpload} title="Attach Image File">
+              <Plus size={18} />
             </button>
-            <button className="tool-btn" title="Models">
-              <ImageIcon size={18} />
+            <button className="toolbar-icon-btn" onClick={handleMentionClick} title="Mention @potato-ai">
+              <AtSign size={16} />
             </button>
-            <button className="tool-btn" title="Capture">
-              <Camera size={18} />
-            </button>
-            <button className="tool-btn" title="Voice">
-              <Mic size={18} />
+
+            {/* Model Chip with Dropdown */}
+            <div 
+              className="model-chip" 
+              title="Select AI Model"
+              onClick={() => setShowModelDropdown(!showModelDropdown)}
+            >
+              <Sparkles size={14} />
+              <span>{selectedModel.includes('ResNet') ? 'ResNet-50' : 'MobileNet'}</span>
+              <span className="model-plus">+1</span>
+            </div>
+
+            {showModelDropdown && (
+              <div className="model-selector-dropdown">
+                <div 
+                  className={`model-option ${selectedModel === 'Potato Vision ResNet-50' ? 'active' : ''}`}
+                  onClick={() => { setSelectedModel('Potato Vision ResNet-50'); setShowModelDropdown(false); }}
+                >
+                  <span>Potato Vision ResNet-50</span>
+                  {selectedModel === 'Potato Vision ResNet-50' && <Check size={14} />}
+                </div>
+                <div 
+                  className={`model-option ${selectedModel === 'Fast MobileNet AI' ? 'active' : ''}`}
+                  onClick={() => { setSelectedModel('Fast MobileNet AI'); setShowModelDropdown(false); }}
+                >
+                  <span>Fast MobileNet AI</span>
+                  {selectedModel === 'Fast MobileNet AI' && <Check size={14} />}
+                </div>
+              </div>
+            )}
+
+            <button 
+              className="desktop-chip" 
+              title="Potato Desktop App"
+              onClick={() => setShowDesktopModal(true)}
+            >
+              <Monitor size={14} />
+              <span>Potato Desktop</span>
             </button>
           </div>
-          <button className="submit-btn" onClick={handleSubmit} disabled={loading} title="Submit">
-            <ArrowUp size={18} />
-          </button>
+
+          <div className="toolbar-right">
+            <button 
+              className={`toolbar-icon-btn ${isListening ? 'mic-active' : ''}`} 
+              onClick={toggleVoiceInput} 
+              title={isListening ? "Stop Voice Recording" : "Voice Input"}
+            >
+              <Mic size={18} />
+            </button>
+            <button className="toolbar-icon-btn" onClick={startCamera} title="Take Photo with Camera">
+              <Camera size={18} />
+            </button>
+            <button 
+              className={`manus-submit-btn ${loading ? 'loading' : ''}`} 
+              onClick={handleSubmit} 
+              disabled={loading} 
+              title="Run Potato Leaf AI Analysis"
+            >
+              <ArrowUp size={18} />
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="action-pills">
-        <button className="pill" onClick={handleTriggerUpload}>
-          <ImageIcon size={16} /> Identify Disease
+      {/* Potato Disease AI Domain Action Pills */}
+      <div className="manus-action-pills">
+        <button className="action-pill" onClick={handleTriggerUpload}>
+          <Leaf size={15} style={{ color: '#22c55e' }} />
+          <span>Diagnose Leaf</span>
         </button>
-        <button className="pill">
-          <HistoryIcon size={16} /> View History
+        <button className="action-pill" onClick={() => setPresetPrompt("How do I distinguish Early Blight from Late Blight on potato leaves?")}>
+          <ShieldAlert size={15} style={{ color: '#f59e0b' }} />
+          <span>Blight Guide</span>
         </button>
-        <button className="pill">
-          View Documentation
+        <button className="action-pill" onClick={() => navigate('/analytics')}>
+          <BarChart3 size={15} style={{ color: '#3b82f6' }} />
+          <span>Crop Analytics</span>
         </button>
-        <button className="pill">
-          Settings
+        <button className="action-pill" onClick={() => setPresetPrompt("What are recommended organic and chemical treatments for potato leaf diseases?")}>
+          <Pill size={15} style={{ color: '#ec4899' }} />
+          <span>Treatment Tips</span>
+        </button>
+        <button className="action-pill" onClick={() => setPresetPrompt("Generate a detailed potato field inspection summary report.")}>
+          <FileText size={15} style={{ color: '#a855f7' }} />
+          <span>Field Report</span>
+        </button>
+        <button className="action-pill more-pill" onClick={() => setShowMoreActions(!showMoreActions)}>
+          <span>{showMoreActions ? "Less" : "More"}</span>
         </button>
       </div>
+
+      {/* Expanded Domain Prompts when More is clicked */}
+      {showMoreActions && (
+        <div className="more-actions-grid">
+          <div className="more-action-card" onClick={() => setPresetPrompt("What fungicide schedule is best for Late Blight prevention?")}>
+            <Pill size={16} style={{ color: '#3b82f6' }} />
+            <span>Fungicide Schedule</span>
+          </div>
+          <div className="more-action-card" onClick={() => setPresetPrompt("What weather conditions accelerate potato Early Blight spreading?")}>
+            <ShieldAlert size={16} style={{ color: '#ef4444' }} />
+            <span>Weather & Risk</span>
+          </div>
+          <div className="more-action-card" onClick={() => setPresetPrompt("How to manage post-harvest storage to avoid potato rot?")}>
+            <Leaf size={16} style={{ color: '#10b981' }} />
+            <span>Harvest Care</span>
+          </div>
+          <div className="more-action-card" onClick={() => setPresetPrompt("Explain soil fertilization best practices for disease resistance.")}>
+            <Layers size={16} style={{ color: '#f59e0b' }} />
+            <span>Soil Health</span>
+          </div>
+        </div>
+      )}
+
+      {/* Desktop App Download Banner */}
+      <div className="manus-download-card">
+        <div className="download-text-group">
+          <h3>Download Potato AI for Windows or macOS</h3>
+          <p>Access local leaf scans and work seamlessly with desktop batch imports.</p>
+        </div>
+        <div className="download-preview-graphic">
+          <div className="mock-window">
+            <div className="mock-dots"><span /><span /><span /></div>
+            <div className="mock-inner-app">
+              <div className="mock-bar" />
+              <div className="mock-box" />
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Carousel Indicator Dots */}
+      <div className="carousel-dots">
+        <span className="dot active" />
+        <span className="dot" />
+        <span className="dot" />
+        <span className="dot" />
+        <span className="dot" />
+      </div>
+
+      {/* Live Camera Modal Overlay */}
+      {showCameraModal && (
+        <div className="camera-modal-overlay">
+          <div className="camera-modal-card">
+            <div className="camera-modal-header">
+              <h3>
+                <Camera size={20} />
+                <span>Potato Leaf Camera Scanner</span>
+              </h3>
+              <button className="icon-btn" onClick={stopCamera}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="camera-viewfinder">
+              <video ref={videoRef} autoPlay playsInline className="camera-video" />
+            </div>
+
+            <div className="camera-actions">
+              <button className="btn-secondary-sm" onClick={stopCamera}>Cancel</button>
+              <button className="shutter-btn" onClick={captureSnapshot} title="Capture Photo">
+                <Camera size={24} color="#fff" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Desktop Info Modal */}
+      {showDesktopModal && (
+        <div className="auth-modal-overlay" onClick={() => setShowDesktopModal(false)}>
+          <div className="auth-modal-card" onClick={(e) => e.stopPropagation()}>
+            <h3>Potato AI Desktop App</h3>
+            <p>Connect local leaf image folders, monitor greenhouse sensors in real time, and auto-sync field diagnosis history.</p>
+            <div className="auth-modal-buttons">
+              <button className="btn-primary-sm" onClick={() => setShowDesktopModal(false)}>Got It</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Auth Prompt Modal for guest action */}
+      {showAuthPrompt && (
+        <div className="auth-modal-overlay" onClick={() => setShowAuthPrompt(false)}>
+          <div className="auth-modal-card" onClick={(e) => e.stopPropagation()}>
+            <h3>Sign in required</h3>
+            <p>Create an account or sign in to process image predictions and store your analysis history.</p>
+            <div className="auth-modal-buttons">
+              <button className="btn-secondary-sm" onClick={() => navigate('/login')}>Sign In</button>
+              <button className="btn-primary-sm" onClick={() => navigate('/register')}>Create Account</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-// Quick fix for missing icons
-const PlusIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>;
-const HistoryIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l4 2"></path></svg>;
-
 export default PromptInput;
+

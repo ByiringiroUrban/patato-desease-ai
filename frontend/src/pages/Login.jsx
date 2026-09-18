@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 
 const Login = () => {
   const { login } = useAuth();
@@ -16,7 +17,7 @@ const Login = () => {
     setLoading(true);
     try {
       await login(email, password);
-      navigate('/dashboard');
+      navigate('/');
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to login');
     } finally {
@@ -27,8 +28,13 @@ const Login = () => {
   return (
     <div className="auth-container">
       <div className="auth-card">
+        <div style={{ marginBottom: '20px' }}>
+          <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+            <ArrowLeft size={16} /> Back to workspace
+          </Link>
+        </div>
         <h2 className="auth-title">Welcome Back</h2>
-        {error && <div style={{ color: 'var(--error-color)', marginBottom: '15px', textAlign: 'center' }}>{error}</div>}
+        {error && <div style={{ color: 'var(--error-color)', marginBottom: '15px', textAlign: 'center', fontSize: '0.85rem' }}>{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label className="form-label">Email</label>

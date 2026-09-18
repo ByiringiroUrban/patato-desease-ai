@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 
 const Register = () => {
   const { register } = useAuth();
@@ -16,7 +17,6 @@ const Register = () => {
     setLoading(true);
     try {
       await register(email, password);
-      // Auto redirect to login after registration
       navigate('/login');
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to register');
@@ -28,8 +28,13 @@ const Register = () => {
   return (
     <div className="auth-container">
       <div className="auth-card">
+        <div style={{ marginBottom: '20px' }}>
+          <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+            <ArrowLeft size={16} /> Back to workspace
+          </Link>
+        </div>
         <h2 className="auth-title">Create Account</h2>
-        {error && <div style={{ color: 'var(--error-color)', marginBottom: '15px', textAlign: 'center' }}>{error}</div>}
+        {error && <div style={{ color: 'var(--error-color)', marginBottom: '15px', textAlign: 'center', fontSize: '0.85rem' }}>{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label className="form-label">Email</label>

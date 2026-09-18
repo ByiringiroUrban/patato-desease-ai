@@ -1,48 +1,314 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Sparkles, Plus, History, BarChart2, Settings, User } from 'lucide-react';
+import axios from 'axios';
+import { 
+  Sparkles, Plus, Search, Sidebar as SidebarIcon, 
+  Bot, ShieldCheck, Grid, Clock, BookOpen, Folder, 
+  FileText, LogIn, UserPlus, LogOut, X, FolderPlus
+} from 'lucide-react';
 
-const Sidebar = () => {
-  const { user } = useAuth();
+const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
+  const { user, token, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const [realTasks, setRealTasks] = useState([]);
+  const [loadingTasks, setLoadingTasks] = useState(false);
+  
+  // Projects state
+  const [projects, setProjects] = useState([]);
+  const [showAddProject, setShowAddProject] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
+
+  // Search modal state
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Fetch real user history from backend API
+  useEffect(() => {
+    const fetchUserHistory = async () => {
+      if (!token) {
+        setRealTasks([]);
+        return;
+      }
+      setLoadingTasks(true);
+      try {
+        const response = await axios.get('http://localhost:8000/api/v1/predictions/history', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setRealTasks(response.data);
+      } catch (err) {
+        console.error('Failed to load task history:', err);
+      } finally {
+        setLoadingTasks(false);
+      }
+    };
+
+    fetchUserHistory();
+  }, [token]);
+
+  const handleCreateProject = (e) => {
+    e.preventDefault();
+    if (!newProjectName.trim()) return;
+    setProjects(prev => [...prev, { id: Date.now(), name: newProjectName.trim() }]);
+    setNewProjectName('');
+    setShowAddProject(false);
+  };
+
+  const filteredTasks = realTasks.filter(task => 
+    (task.class_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (task.filename || '').toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
-    <aside className="sidebar">
-      <div className="sidebar-logo">
-        <Sparkles size={24} color="var(--accent-color)" />
-        <span>Potato AI</span>
-      </div>
+    <>
+      <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+        {/* Sidebar Header */}
+        <div className="sidebar-header">
+          <Link to="/" className="sidebar-brand">
+            <Sparkles size={20} className="brand-icon" />
+            {!isCollapsed && <span className="brand-name">potato</span>}
+          </Link>
+          <div className="sidebar-header-actions">
+            <button 
+              className="icon-btn" 
+              onClick={() => setIsSearchOpen(true)} 
+              title="Search tasks (Ctrl+K)"
+            >
+              <Search size={16} />
+            </button>
+            <button 
+              className="icon-btn" 
+              onClick={onToggleCollapse} 
+              title={isCollapsed ? "Expand Sidebar" : "Minimize Sidebar"}
+            >
+              <SidebarIcon size={16} />
+            </button>
+          </div>
+        </div>
 
-      <nav className="sidebar-nav">
-        <NavLink to="/dashboard" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-          <Plus size={18} />
-          <span>New Task</span>
-        </NavLink>
-        <NavLink to="/history" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-          <History size={18} />
-          <span>History</span>
-        </NavLink>
-        <NavLink to="/analytics" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-          <BarChart2 size={18} />
-          <span>Analytics</span>
-        </NavLink>
-        {user?.is_admin && (
-          <NavLink to="/admin" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-            <Settings size={18} />
-            <span>Admin Panel</span>
+        <div className="sidebar-scrollable">
+          {/* New Task Button */}
+          <NavLink 
+            to="/dashboard" 
+            className="new-task-btn" 
+            title="Create New Task"
+          >
+            <Plus size={18} />
+            {!isCollapsed && <span>New task</span>}
           </NavLink>
-        )}
-      </nav>
 
-      <div className="sidebar-user">
-        <div className="user-avatar">
-          {user?.email ? user.email[0].toUpperCase() : <User size={16} />}
+          {/* Core Menu */}
+          <div className="sidebar-menu">
+            <NavLink 
+              to="/dashboard" 
+              className={({ isActive }) => `menu-item ${isActive ? 'active' : ''}`}
+              title="Agent Workspace"
+            >
+              <Bot size={18} />
+              {!isCollapsed && <span>Agent</span>}
+            </NavLink>
+            <NavLink 
+              to="/analytics" 
+              className={({ isActive }) => `menu-item ${isActive ? 'active' : ''}`}
+              title="Skills & Diagnostics"
+            >
+              <ShieldCheck size={18} />
+              {!isCollapsed && (
+                <>
+                  <span>Skills</span>
+                  <span className="badge-new">New</span>
+                </>
+              )}
+            </NavLink>
+            <div className="menu-item disabled-item" title="Plugins (Coming soon)">
+              <Grid size={18} />
+              {!isCollapsed && <span>Plugins</span>}
+            </div>
+            <div className="menu-item disabled-item" title="Scheduled (Coming soon)">
+              <Clock size={18} />
+              {!isCollapsed && <span>Scheduled</span>}
+            </div>
+            <NavLink 
+              to="/history" 
+              className={({ isActive }) => `menu-item ${isActive ? 'active' : ''}`}
+              title="Library & History"
+            >
+              <BookOpen size={18} />
+              {!isCollapsed && <span>Library</span>}
+            </NavLink>
+          </div>
+
+          {!isCollapsed && (
+            <>
+              {/* Projects Section */}
+              <div className="sidebar-section">
+                <div className="section-title">
+                  <span>Projects</span>
+                  <button 
+                    className="icon-btn-xs" 
+                    onClick={() => setShowAddProject(!showAddProject)} 
+                    title="Add Project Folder"
+                  >
+                    <Plus size={14} />
+                  </button>
+                </div>
+
+                {showAddProject && (
+                  <form onSubmit={handleCreateProject} className="add-project-form">
+                    <input 
+                      type="text" 
+                      placeholder="Folder name..." 
+                      value={newProjectName} 
+                      onChange={(e) => setNewProjectName(e.target.value)}
+                      autoFocus
+                    />
+                    <button type="submit" className="icon-btn-xs check"><Plus size={12} /></button>
+                  </form>
+                )}
+
+                {projects.length > 0 ? (
+                  projects.map((proj) => (
+                    <div key={proj.id} className="project-item">
+                      <Folder size={14} className="folder-icon" />
+                      <span className="project-name">{proj.name}</span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="sidebar-empty-state">No projects created</div>
+                )}
+              </div>
+
+              {/* Real Tasks History Section */}
+              <div className="sidebar-section">
+                <div className="section-title">
+                  <span>Tasks</span>
+                  <span className="task-count-badge">{realTasks.length}</span>
+                </div>
+
+                <div className="tasks-list">
+                  {loadingTasks ? (
+                    <div className="sidebar-empty-state">Loading history...</div>
+                  ) : realTasks.length > 0 ? (
+                    realTasks.map((task, idx) => (
+                      <div 
+                        key={task.id || idx} 
+                        className="task-item" 
+                        title={`${task.class_name} (${(task.confidence * 100).toFixed(0)}%)`}
+                        onClick={() => navigate('/history')}
+                      >
+                        <FileText size={14} className="task-icon" />
+                        <span className="task-title">
+                          {task.class_name || `Scan #${task.id}`}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="sidebar-empty-state">
+                      {user ? "No task history yet" : "Sign in to save tasks"}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
         </div>
-        <div className="user-info">
-          <span className="user-name">{user?.email || 'Guest User'}</span>
+
+        {/* Footer / Profile */}
+        <div className="sidebar-footer">
+          {user ? (
+            <div className="user-profile">
+              <div className="user-avatar">
+                {user.email ? user.email[0].toUpperCase() : 'U'}
+              </div>
+              {!isCollapsed && (
+                <>
+                  <div className="user-details">
+                    <span className="user-name">{user.email}</span>
+                    <span className="user-role">Member</span>
+                  </div>
+                  <button onClick={logout} className="icon-btn logout-icon" title="Log out">
+                    <LogOut size={16} />
+                  </button>
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="guest-footer">
+              <div className="user-profile">
+                <div className="user-avatar guest-avatar">
+                  G
+                </div>
+                {!isCollapsed && (
+                  <div className="user-details">
+                    <span className="user-name">Guest User</span>
+                    <span className="user-role">Free Access</span>
+                  </div>
+                )}
+              </div>
+              {!isCollapsed && (
+                <div className="sidebar-auth-actions">
+                  <Link to="/login" className="sidebar-auth-btn signin">
+                    <LogIn size={14} />
+                    <span>Sign In</span>
+                  </Link>
+                  <Link to="/register" className="sidebar-auth-btn signup">
+                    <UserPlus size={14} />
+                    <span>Sign Up</span>
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
         </div>
-      </div>
-    </aside>
+      </aside>
+
+      {/* Interactive Search Command Palette Modal */}
+      {isSearchOpen && (
+        <div className="search-modal-overlay" onClick={() => setIsSearchOpen(false)}>
+          <div className="search-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="search-modal-header">
+              <Search size={18} className="search-icon-muted" />
+              <input 
+                type="text" 
+                placeholder="Search tasks, predictions, commands..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                autoFocus
+              />
+              <button className="icon-btn" onClick={() => setIsSearchOpen(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="search-modal-results">
+              {filteredTasks.length > 0 ? (
+                filteredTasks.map((task, idx) => (
+                  <div 
+                    key={task.id || idx} 
+                    className="search-result-item"
+                    onClick={() => {
+                      setIsSearchOpen(false);
+                      navigate('/history');
+                    }}
+                  >
+                    <FileText size={16} />
+                    <div className="search-result-info">
+                      <span className="search-result-title">{task.class_name}</span>
+                      <span className="search-result-sub">Confidence: {(task.confidence * 100).toFixed(1)}%</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="search-no-results">
+                  {searchQuery ? `No tasks matching "${searchQuery}"` : "Type to search your tasks history..."}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

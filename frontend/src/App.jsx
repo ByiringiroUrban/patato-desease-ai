@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -18,11 +18,17 @@ const ProtectedRoute = ({ children }) => {
 };
 
 const AppLayout = ({ children }) => {
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed((prev) => !prev);
+  };
+
   return (
-    <div className="app-container">
-      <Sidebar />
+    <div className={`app-container ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+      <Sidebar isCollapsed={isSidebarCollapsed} onToggleCollapse={toggleSidebar} />
       <main className="main-content">
-        <TopNav />
+        <TopNav isSidebarCollapsed={isSidebarCollapsed} onToggleSidebar={toggleSidebar} />
         {children}
       </main>
     </div>
@@ -38,14 +44,16 @@ const App = () => {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             
-            <Route path="/" element={<Navigate to="/dashboard" />} />
-            
+            <Route path="/" element={
+              <AppLayout>
+                <UserDashboard />
+              </AppLayout>
+            } />
+
             <Route path="/dashboard" element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <UserDashboard />
-                </AppLayout>
-              </ProtectedRoute>
+              <AppLayout>
+                <UserDashboard />
+              </AppLayout>
             } />
             
             <Route path="/history" element={
