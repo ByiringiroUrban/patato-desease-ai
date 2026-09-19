@@ -7,6 +7,7 @@ import TopNav from './components/TopNav';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import UserDashboard from './pages/UserDashboard';
+import HistoryPage from './pages/HistoryPage';
 import AdminDashboard from './pages/AdminDashboard';
 import './index.css';
 
@@ -55,11 +56,11 @@ const App = () => {
                 <UserDashboard />
               </AppLayout>
             } />
-            
+
             <Route path="/history" element={
               <ProtectedRoute>
                 <AppLayout>
-                  <UserDashboard />
+                  <HistoryPage />
                 </AppLayout>
               </ProtectedRoute>
             } />

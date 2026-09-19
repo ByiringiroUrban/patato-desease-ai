@@ -5,8 +5,10 @@ import axios from 'axios';
 import { 
   Sparkles, Plus, Search, Sidebar as SidebarIcon, 
   Bot, ShieldCheck, Grid, Clock, BookOpen, Folder, 
-  FileText, LogIn, UserPlus, LogOut, X, FolderPlus
+  FileText, LogIn, UserPlus, LogOut, X, FolderPlus, Trash2
 } from 'lucide-react';
+
+import ProfileSettingsModal from './ProfileSettingsModal';
 
 const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
   const { user, token, logout } = useAuth();
@@ -14,6 +16,7 @@ const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
 
   const [realTasks, setRealTasks] = useState([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
   // Projects state
   const [projects, setProjects] = useState([]);
@@ -24,28 +27,45 @@ const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Fetch real user history from backend API
-  useEffect(() => {
-    const fetchUserHistory = async () => {
-      if (!token) {
-        setRealTasks([]);
-        return;
-      }
-      setLoadingTasks(true);
-      try {
-        const response = await axios.get('http://localhost:8000/api/v1/predictions/history', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setRealTasks(response.data);
-      } catch (err) {
-        console.error('Failed to load task history:', err);
-      } finally {
-        setLoadingTasks(false);
-      }
-    };
+  const fetchUserHistory = async () => {
+    if (!token) {
+      setRealTasks([]);
+      return;
+    }
+    setLoadingTasks(true);
+    try {
+      const response = await axios.get('http://localhost:8000/api/v1/predictions/history', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setRealTasks(response.data);
+    } catch (err) {
+      console.error('Failed to load task history:', err);
+    } finally {
+      setLoadingTasks(false);
+    }
+  };
 
+  // Fetch real user history from backend API & listen for updates
+  useEffect(() => {
     fetchUserHistory();
+
+    const handleUpdate = () => fetchUserHistory();
+    window.addEventListener('taskHistoryUpdated', handleUpdate);
+    return () => window.removeEventListener('taskHistoryUpdated', handleUpdate);
   }, [token]);
+
+  const handleDeleteTask = async (e, taskId) => {
+    e.stopPropagation();
+    if (!token) return;
+    try {
+      await axios.delete(`http://localhost:8000/api/v1/predictions/history/${taskId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setRealTasks(prev => prev.filter(t => t.id !== taskId));
+    } catch (err) {
+      console.error('Failed to delete task:', err);
+    }
+  };
 
   const handleCreateProject = (e) => {
     e.preventDefault();
@@ -55,10 +75,11 @@ const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
     setShowAddProject(false);
   };
 
-  const filteredTasks = realTasks.filter(task => 
-    (task.class_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (task.filename || '').toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredTasks = realTasks.filter(task => {
+    const title = task.predicted_class || task.class_name || '';
+    const file = task.image_filename || task.filename || '';
+    return title.toLowerCase().includes(searchQuery.toLowerCase()) || file.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 
   return (
     <>
@@ -190,19 +211,29 @@ const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
                   {loadingTasks ? (
                     <div className="sidebar-empty-state">Loading history...</div>
                   ) : realTasks.length > 0 ? (
-                    realTasks.map((task, idx) => (
-                      <div 
-                        key={task.id || idx} 
-                        className="task-item" 
-                        title={`${task.class_name} (${(task.confidence * 100).toFixed(0)}%)`}
-                        onClick={() => navigate('/history')}
-                      >
-                        <FileText size={14} className="task-icon" />
-                        <span className="task-title">
-                          {task.class_name || `Scan #${task.id}`}
-                        </span>
-                      </div>
-                    ))
+                    realTasks.map((task, idx) => {
+                      const title = task.predicted_class || task.class_name || `Scan #${task.id}`;
+                      return (
+                        <div 
+                          key={task.id || idx} 
+                          className="task-item" 
+                          title={`${title} (${(task.confidence * 100).toFixed(0)}%)`}
+                          onClick={() => navigate('/history')}
+                        >
+                          <div className="task-item-left">
+                            <FileText size={14} className="task-icon" />
+                            <span className="task-title">{title}</span>
+                          </div>
+                          <button 
+                            className="task-delete-btn" 
+                            onClick={(e) => handleDeleteTask(e, task.id)}
+                            title="Delete task"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      );
+                    })
                   ) : (
                     <div className="sidebar-empty-state">
                       {user ? "No task history yet" : "Sign in to save tasks"}
@@ -217,7 +248,12 @@ const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
         {/* Footer / Profile */}
         <div className="sidebar-footer">
           {user ? (
-            <div className="user-profile">
+            <div 
+              className="user-profile" 
+              onClick={() => setIsSettingsOpen(true)}
+              title="Click to view Profile & Settings"
+              style={{ cursor: 'pointer' }}
+            >
               <div className="user-avatar">
                 {user.email ? user.email[0].toUpperCase() : 'U'}
               </div>
@@ -227,7 +263,11 @@ const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
                     <span className="user-name">{user.email}</span>
                     <span className="user-role">Member</span>
                   </div>
-                  <button onClick={logout} className="icon-btn logout-icon" title="Log out">
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); logout(); }} 
+                    className="icon-btn logout-icon" 
+                    title="Log out"
+                  >
                     <LogOut size={16} />
                   </button>
                 </>
@@ -235,7 +275,12 @@ const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
             </div>
           ) : (
             <div className="guest-footer">
-              <div className="user-profile">
+              <div 
+                className="user-profile" 
+                onClick={() => setIsSettingsOpen(true)}
+                title="Click to view Settings"
+                style={{ cursor: 'pointer' }}
+              >
                 <div className="user-avatar guest-avatar">
                   G
                 </div>
@@ -262,6 +307,12 @@ const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
           )}
         </div>
       </aside>
+
+      {/* Profile & Settings Modal */}
+      <ProfileSettingsModal 
+        isOpen={isSettingsOpen} 
+        onClose={() => setIsSettingsOpen(false)} 
+      />
 
       {/* Interactive Search Command Palette Modal */}
       {isSearchOpen && (

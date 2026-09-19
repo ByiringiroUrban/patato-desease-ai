@@ -1,6 +1,5 @@
 from pathlib import Path
-
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, File, HTTPException, UploadFile, Depends
 from sqlalchemy.orm import Session
 
@@ -8,7 +7,7 @@ from api.schemas import PredictionResponse, PredictionHistoryResponse
 from src.inference.predict import predict_image
 from api.database import get_db
 from api.models import PredictionHistory, User
-from api.auth import get_current_user
+from api.auth import get_current_user, get_optional_current_user
 
 
 router = APIRouter(tags=["Prediction"])
@@ -18,7 +17,11 @@ MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
 @router.post("/predict", response_model=PredictionResponse)
-async def predict(file: UploadFile = File(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def predict(
+    file: UploadFile = File(...), 
+    db: Session = Depends(get_db), 
+    current_user: Optional[User] = Depends(get_optional_current_user)
+):
     if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(
             status_code=400,
@@ -38,15 +41,16 @@ async def predict(file: UploadFile = File(...), db: Session = Depends(get_db), c
         temp_path.write_bytes(data)
         result = predict_image(str(temp_path))
 
-        db_record = PredictionHistory(
-            user_id=current_user.id,
-            predicted_class=result["class"],
-            confidence=result["confidence"],
-            image_filename=file.filename
-        )
-        db.add(db_record)
-        db.commit()
-        db.refresh(db_record)
+        if current_user:
+            db_record = PredictionHistory(
+                user_id=current_user.id,
+                predicted_class=result["class"],
+                confidence=result["confidence"],
+                image_filename=file.filename
+            )
+            db.add(db_record)
+            db.commit()
+            db.refresh(db_record)
 
         return PredictionResponse(
             class_name=result["class"],
@@ -65,3 +69,17 @@ async def predict(file: UploadFile = File(...), db: Session = Depends(get_db), c
 def get_history(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     records = db.query(PredictionHistory).filter(PredictionHistory.user_id == current_user.id).order_by(PredictionHistory.created_at.desc()).offset(skip).limit(limit).all()
     return records
+
+@router.delete("/history/{history_id}")
+def delete_history_item(history_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    record = db.query(PredictionHistory).filter(
+        PredictionHistory.id == history_id, 
+        PredictionHistory.user_id == current_user.id
+    ).first()
+    
+    if not record:
+        raise HTTPException(status_code=404, detail="Task not found or access denied")
+        
+    db.delete(record)
+    db.commit()
+    return {"message": "Task history item deleted", "id": history_id}

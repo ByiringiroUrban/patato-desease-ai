@@ -28,6 +28,7 @@ const UserDashboard = () => {
   const handlePredictionComplete = (result) => {
     setLatestPrediction(result);
     fetchHistory();
+    window.dispatchEvent(new Event('taskHistoryUpdated'));
   };
 
   return (
