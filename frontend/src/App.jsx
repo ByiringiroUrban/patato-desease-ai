@@ -11,6 +11,9 @@ import HistoryPage from './pages/HistoryPage';
 import AdminDashboard from './pages/AdminDashboard';
 import './index.css';
 
+import AnalyticsPage from './pages/AnalyticsPage';
+import ProjectDetailPage from './pages/ProjectDetailPage';
+
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return <div>Loading...</div>;
@@ -68,10 +71,15 @@ const App = () => {
             <Route path="/analytics" element={
               <ProtectedRoute>
                 <AppLayout>
-                  <div className="page-container">
-                    <h2 className="page-title">Analytics</h2>
-                    <p>Coming soon...</p>
-                  </div>
+                  <AnalyticsPage />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/project/:projectId" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <ProjectDetailPage />
                 </AppLayout>
               </ProtectedRoute>
             } />

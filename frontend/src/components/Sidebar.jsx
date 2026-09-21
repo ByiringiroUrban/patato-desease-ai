@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 
 import ProfileSettingsModal from './ProfileSettingsModal';
+import SkillsModal from './SkillsModal';
 
 const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
   const { user, token, logout } = useAuth();
@@ -17,11 +18,28 @@ const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
   const [realTasks, setRealTasks] = useState([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isSkillsOpen, setIsSkillsOpen] = useState(false);
   
-  // Projects state
-  const [projects, setProjects] = useState([]);
+  // Projects state initialized with local storage persistence
+  const [projects, setProjects] = useState(() => {
+    try {
+      const saved = localStorage.getItem('potato_ai_projects');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return [
+      { id: 'field-north', name: 'North Field Plot A', description: 'Early season Russet Burbank crop monitoring' },
+      { id: 'greenhouse-1', name: 'Greenhouse Seedlings', description: 'Seed potato disease screening' }
+    ];
+  });
   const [showAddProject, setShowAddProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
+
+  // Persist projects to localStorage whenever updated
+  useEffect(() => {
+    try {
+      localStorage.setItem('potato_ai_projects', JSON.stringify(projects));
+    } catch (e) {}
+  }, [projects]);
 
   // Search modal state
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -70,9 +88,21 @@ const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
   const handleCreateProject = (e) => {
     e.preventDefault();
     if (!newProjectName.trim()) return;
-    setProjects(prev => [...prev, { id: Date.now(), name: newProjectName.trim() }]);
+    const newProj = { 
+      id: `proj-${Date.now()}`, 
+      name: newProjectName.trim(),
+      description: 'Active potato crop inspection folder.',
+      createdAt: new Date().toISOString()
+    };
+    setProjects(prev => [newProj, ...prev]);
     setNewProjectName('');
     setShowAddProject(false);
+  };
+
+  const handleDeleteProject = (e, projId) => {
+    e.stopPropagation();
+    setProjects(prev => prev.filter(p => p.id !== projId));
+    localStorage.removeItem(`potato_project_scans_${projId}`);
   };
 
   const filteredTasks = realTasks.filter(task => {
@@ -129,10 +159,11 @@ const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
               <Bot size={18} />
               {!isCollapsed && <span>Agent</span>}
             </NavLink>
-            <NavLink 
-              to="/analytics" 
-              className={({ isActive }) => `menu-item ${isActive ? 'active' : ''}`}
-              title="Skills & Diagnostics"
+            <button 
+              className="menu-item" 
+              onClick={() => setIsSkillsOpen(true)}
+              title="Potato AI Skills Library"
+              style={{ width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}
             >
               <ShieldCheck size={18} />
               {!isCollapsed && (
@@ -141,7 +172,7 @@ const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
                   <span className="badge-new">New</span>
                 </>
               )}
-            </NavLink>
+            </button>
             <div className="menu-item disabled-item" title="Plugins (Coming soon)">
               <Grid size={18} />
               {!isCollapsed && <span>Plugins</span>}
@@ -190,9 +221,23 @@ const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
 
                 {projects.length > 0 ? (
                   projects.map((proj) => (
-                    <div key={proj.id} className="project-item">
-                      <Folder size={14} className="folder-icon" />
-                      <span className="project-name">{proj.name}</span>
+                    <div 
+                      key={proj.id} 
+                      className="project-item"
+                      onClick={() => navigate(`/project/${proj.id}`)}
+                      title={`Open project: ${proj.name}`}
+                    >
+                      <div className="project-item-left">
+                        <Folder size={14} className="folder-icon" />
+                        <span className="project-name">{proj.name}</span>
+                      </div>
+                      <button 
+                        className="project-delete-btn" 
+                        onClick={(e) => handleDeleteProject(e, proj.id)}
+                        title="Delete project"
+                      >
+                        <Trash2 size={13} />
+                      </button>
                     </div>
                   ))
                 ) : (
@@ -359,6 +404,21 @@ const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
           </div>
         </div>
       )}
+
+      {/* Potato AI Skills Library Modal */}
+      <SkillsModal 
+        isOpen={isSkillsOpen} 
+        onClose={() => setIsSkillsOpen(false)}
+        onExecuteSkill={(skill) => {
+          setIsSkillsOpen(false);
+          if (skill.id === 'crop-analytics') {
+            navigate('/analytics');
+          } else {
+            navigate('/dashboard');
+            window.dispatchEvent(new CustomEvent('insertPromptText', { detail: skill.details.samplePrompt }));
+          }
+        }}
+      />
     </>
   );
 };

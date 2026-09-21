@@ -17,7 +17,8 @@ export const AuthProvider = ({ children }) => {
       // For now, we will decode a mock user from token, ideally call API to get user profile
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
-        setUser({ email: payload.sub });
+        const savedPlan = localStorage.getItem(`user_plan_${payload.sub}`) || 'free';
+        setUser({ email: payload.sub, plan: savedPlan });
       } catch (e) {
         setUser(null);
       }
@@ -27,6 +28,15 @@ export const AuthProvider = ({ children }) => {
     }
     setLoading(false);
   }, [token]);
+
+  const updateUserPlan = (newPlan) => {
+    if (user?.email) {
+      localStorage.setItem(`user_plan_${user.email}`, newPlan);
+      setUser(prev => ({ ...prev, plan: newPlan }));
+    } else {
+      setUser(prev => ({ ...prev, plan: newPlan }));
+    }
+  };
 
   const login = async (email, password) => {
     const formData = new URLSearchParams();
@@ -47,7 +57,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout, loading }}>
+    <AuthContext.Provider value={{ user, token, login, register, logout, loading, updateUserPlan }}>
       {!loading && children}
     </AuthContext.Provider>
   );

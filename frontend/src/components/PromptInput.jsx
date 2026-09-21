@@ -8,20 +8,35 @@ import {
   FileText, Pill, ChevronDown, Check, Video, HelpCircle, Layers
 } from 'lucide-react';
 
+import UpgradeModal from './UpgradeModal';
+
 const PromptInput = ({ onPredictionComplete }) => {
   const { token, user } = useAuth();
   const navigate = useNavigate();
   const [file, setFile] = useState(null);
+  const [filePreview, setFilePreview] = useState(null);
   const [promptText, setPromptText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   // Model & Tool States
   const [selectedModel, setSelectedModel] = useState('Potato Vision ResNet-50');
   const [showModelDropdown, setShowModelDropdown] = useState(false);
   const [showDesktopModal, setShowDesktopModal] = useState(false);
   const [showMoreActions, setShowMoreActions] = useState(false);
+
+  // Handle object URL creation and revocation
+  useEffect(() => {
+    if (!file) {
+      setFilePreview(null);
+      return;
+    }
+    const objectUrl = URL.createObjectURL(file);
+    setFilePreview(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [file]);
 
   // Voice State
   const [isListening, setIsListening] = useState(false);
@@ -65,6 +80,18 @@ const PromptInput = ({ onPredictionComplete }) => {
     } else {
       setSpeechSupported(false);
     }
+  }, []);
+
+  // Listen for custom skill execution events from Sidebar or modals
+  useEffect(() => {
+    const handleInsertPrompt = (e) => {
+      if (e.detail) {
+        setPromptText(e.detail);
+        setError('');
+      }
+    };
+    window.addEventListener('insertPromptText', handleInsertPrompt);
+    return () => window.removeEventListener('insertPromptText', handleInsertPrompt);
   }, []);
 
   // Voice Toggle
@@ -198,9 +225,17 @@ const PromptInput = ({ onPredictionComplete }) => {
     <div className="manus-center-container">
       {/* Plan Badge */}
       <div className="plan-badge-container">
-        <span className="plan-badge">Free plan</span>
+        <span className="plan-badge">
+          {user?.plan === 'pro' ? 'Pro Agronomist Plan' : user?.plan === 'enterprise' ? 'Enterprise Plan' : 'Free plan'}
+        </span>
         <span className="plan-separator">|</span>
-        <button className="upgrade-link" onClick={() => navigate('/register')}>Upgrade</button>
+        <button 
+          className="upgrade-link" 
+          onClick={() => setShowUpgradeModal(true)}
+          type="button"
+        >
+          {user?.plan && user.plan !== 'free' ? 'Manage Plan' : 'Upgrade'}
+        </button>
       </div>
 
       {/* Main Title */}
@@ -212,15 +247,33 @@ const PromptInput = ({ onPredictionComplete }) => {
           className="manus-textarea" 
           value={promptText}
           onChange={(e) => setPromptText(e.target.value)}
-          placeholder={file ? `Attached leaf image: ${file.name}` : "Assign a potato scan task or ask for disease diagnostics..."} 
+          placeholder={file ? "Add questions or notes about this leaf (optional)..." : "Assign a potato scan task or ask for disease diagnostics..."} 
           rows={3}
         />
 
         {file && (
-          <div className="attached-file-chip">
-            <ImageIcon size={14} />
-            <span>{file.name}</span>
-            <button className="remove-file-btn" onClick={() => setFile(null)}>×</button>
+          <div className="attached-image-preview-container">
+            <div className="attached-image-card">
+              {filePreview ? (
+                <img 
+                  src={filePreview} 
+                  alt="Attached leaf preview" 
+                  className="attached-image-thumb" 
+                />
+              ) : (
+                <div className="attached-image-fallback">
+                  <ImageIcon size={20} />
+                </div>
+              )}
+              <button 
+                className="remove-attached-image-btn" 
+                onClick={() => setFile(null)}
+                title="Remove image"
+                type="button"
+              >
+                <X size={13} />
+              </button>
+            </div>
           </div>
         )}
 
@@ -437,19 +490,11 @@ const PromptInput = ({ onPredictionComplete }) => {
         </div>
       )}
 
-      {/* Auth Prompt Modal for guest action */}
-      {showAuthPrompt && (
-        <div className="auth-modal-overlay" onClick={() => setShowAuthPrompt(false)}>
-          <div className="auth-modal-card" onClick={(e) => e.stopPropagation()}>
-            <h3>Sign in required</h3>
-            <p>Create an account or sign in to process image predictions and store your analysis history.</p>
-            <div className="auth-modal-buttons">
-              <button className="btn-secondary-sm" onClick={() => navigate('/login')}>Sign In</button>
-              <button className="btn-primary-sm" onClick={() => navigate('/register')}>Create Account</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Upgrade Subscription Modal */}
+      <UpgradeModal 
+        isOpen={showUpgradeModal} 
+        onClose={() => setShowUpgradeModal(false)} 
+      />
     </div>
   );
 };

@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import ProfileSettingsModal from './ProfileSettingsModal';
+import ShareModal from './ShareModal';
+import UpgradeModal from './UpgradeModal';
 
 const TopNav = ({ isSidebarCollapsed, onToggleSidebar }) => {
   const { theme, toggleTheme } = useTheme();
@@ -15,15 +17,23 @@ const TopNav = ({ isSidebarCollapsed, onToggleSidebar }) => {
   const navigate = useNavigate();
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
+  const [selectedModel, setSelectedModel] = useState('Potato AI 1.6 Lite');
   const [showShareToast, setShowShareToast] = useState(false);
   const menuRef = useRef(null);
+  const modelDropdownRef = useRef(null);
 
-  // Close popover on outside click
+  // Close popovers on outside click
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
         setIsMenuOpen(false);
+      }
+      if (modelDropdownRef.current && !modelDropdownRef.current.contains(e.target)) {
+        setIsModelDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -37,17 +47,39 @@ const TopNav = ({ isSidebarCollapsed, onToggleSidebar }) => {
   };
 
   const handleShareClick = () => {
-    navigator.clipboard.writeText(window.location.href);
-    setShowShareToast(true);
-    setTimeout(() => setShowShareToast(false), 2500);
+    setIsShareModalOpen(true);
   };
 
   const initialLetter = user?.email ? user.email[0].toUpperCase() : 'U';
 
+  const modelsList = [
+    {
+      id: 'lite',
+      name: 'Potato AI 1.6 Lite',
+      badge: 'Default',
+      badgeColor: '#22c55e',
+      description: 'Ultra-fast ResNet-50 vision model optimized for rapid field diagnosis and leaf scanning.'
+    },
+    {
+      id: 'pro',
+      name: 'Potato AI 2.0 Pro (Max)',
+      badge: 'High Accuracy',
+      badgeColor: '#3b82f6',
+      description: 'Deep pathology reasoning with integrated micro-symptom triage and treatment protocols.'
+    },
+    {
+      id: 'edge',
+      name: 'MobileNet Offline Edge',
+      badge: 'Lightweight',
+      badgeColor: '#f59e0b',
+      description: 'Compressed model for low-bandwidth rural connections and instant local inferences.'
+    }
+  ];
+
   return (
     <>
       <header className="topbar">
-        <div className="topbar-left">
+        <div className="topbar-left" style={{ position: 'relative' }} ref={modelDropdownRef}>
           {isSidebarCollapsed && (
             <button 
               className="icon-btn sidebar-expand-toggle" 
@@ -57,10 +89,68 @@ const TopNav = ({ isSidebarCollapsed, onToggleSidebar }) => {
               <SidebarIcon size={18} />
             </button>
           )}
-          <div className="model-selector" onClick={() => setIsSettingsOpen(true)} style={{ cursor: 'pointer' }}>
-            <span className="model-name">Potato AI 1.6 Lite</span>
-            <ChevronDown size={14} className="model-arrow" />
+          <div 
+            className={`model-selector ${isModelDropdownOpen ? 'active' : ''}`} 
+            onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)} 
+            style={{ cursor: 'pointer' }}
+            title="Switch Potato AI Model"
+          >
+            <span className="model-name">{selectedModel}</span>
+            <ChevronDown 
+              size={14} 
+              className="model-arrow" 
+              style={{ 
+                transform: isModelDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                transition: 'transform 0.2s ease'
+              }} 
+            />
           </div>
+
+          {/* Model Switcher Dropdown Popover */}
+          {isModelDropdownOpen && (
+            <div className="topbar-model-dropdown">
+              <div className="topbar-model-header">
+                <span className="topbar-model-label">Model Selection</span>
+              </div>
+              <div className="topbar-model-list">
+                {modelsList.map((m) => {
+                  const isSelected = selectedModel === m.name;
+                  return (
+                    <div 
+                      key={m.id}
+                      className={`topbar-model-item ${isSelected ? 'selected' : ''}`}
+                      onClick={() => {
+                        setSelectedModel(m.name);
+                        setIsModelDropdownOpen(false);
+                      }}
+                    >
+                      <div className="topbar-model-info">
+                        <div className="topbar-model-title-row">
+                          <span className="topbar-model-name">{m.name}</span>
+                          <span 
+                            className="topbar-model-badge" 
+                            style={{ 
+                              backgroundColor: `${m.badgeColor}18`, 
+                              color: m.badgeColor,
+                              borderColor: `${m.badgeColor}35`
+                            }}
+                          >
+                            {m.badge}
+                          </span>
+                        </div>
+                        <p className="topbar-model-desc">{m.description}</p>
+                      </div>
+                      {isSelected && (
+                        <div className="topbar-model-check">
+                          <Check size={16} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="topbar-actions" style={{ position: 'relative' }} ref={menuRef}>
@@ -83,17 +173,7 @@ const TopNav = ({ isSidebarCollapsed, onToggleSidebar }) => {
 
           {user ? (
             <>
-              {/* User Email Tag */}
-              <div className="user-nav-group">
-                <span 
-                  className="user-email-tag" 
-                  onClick={() => setIsMenuOpen(!isMenuOpen)} 
-                  style={{ cursor: 'pointer' }} 
-                  title="Profile & Settings"
-                >
-                  {user.email}
-                </span>
-              </div>
+
 
               {/* ChatGPT Style 3-Dots Button */}
               <button 
@@ -111,9 +191,20 @@ const TopNav = ({ isSidebarCollapsed, onToggleSidebar }) => {
                     <div className="popover-avatar">{initialLetter}</div>
                     <div className="popover-user-info">
                       <span className="popover-email">{user.email}</span>
-                      <span className="popover-plan">Member • Free Plan</span>
+                      <span className="popover-plan">
+                        {user.plan === 'pro' ? 'Member • Pro Plan' : user.plan === 'enterprise' ? 'Member • Enterprise' : 'Member • Free Plan'}
+                      </span>
                     </div>
                   </div>
+
+                  <button 
+                    className="popover-item upgrade-popover-item" 
+                    onClick={() => { setIsMenuOpen(false); setIsUpgradeOpen(true); }}
+                    style={{ color: '#22c55e', fontWeight: 600 }}
+                  >
+                    <Zap size={16} />
+                    <span>{user.plan && user.plan !== 'free' ? 'Manage Subscription' : 'Upgrade Plan'}</span>
+                  </button>
 
                   <button className="popover-item" onClick={() => { setIsMenuOpen(false); setIsSettingsOpen(true); }}>
                     <Settings size={16} />
@@ -166,6 +257,18 @@ const TopNav = ({ isSidebarCollapsed, onToggleSidebar }) => {
           <span>Workspace link copied to clipboard!</span>
         </div>
       )}
+
+      {/* Share Modal */}
+      <ShareModal 
+        isOpen={isShareModalOpen} 
+        onClose={() => setIsShareModalOpen(false)} 
+      />
+
+      {/* Upgrade Subscription Modal */}
+      <UpgradeModal 
+        isOpen={isUpgradeOpen} 
+        onClose={() => setIsUpgradeOpen(false)} 
+      />
 
       {/* Settings Modal */}
       <ProfileSettingsModal 
