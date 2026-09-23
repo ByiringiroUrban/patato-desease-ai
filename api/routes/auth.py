@@ -10,6 +10,7 @@ from api.auth import (
     get_password_hash,
     create_access_token,
     ACCESS_TOKEN_EXPIRE_MINUTES,
+    get_current_user,
 )
 
 router = APIRouter(tags=["Authentication"])
@@ -46,3 +47,9 @@ def login_access_token(
         data={"sub": user.email}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+@router.get("/me", response_model=UserResponse)
+def get_me(current_user: User = Depends(get_current_user)):
+    """Return the authenticated user's profile, including is_admin status."""
+    return current_user

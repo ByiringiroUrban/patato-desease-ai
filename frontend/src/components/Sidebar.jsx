@@ -5,7 +5,8 @@ import axios from 'axios';
 import { 
   Sparkles, Plus, Search, Sidebar as SidebarIcon, 
   Bot, ShieldCheck, Grid, Clock, BookOpen, Folder, 
-  FileText, LogIn, UserPlus, LogOut, X, FolderPlus, Trash2
+  FileText, LogIn, UserPlus, LogOut, X, FolderPlus, Trash2,
+  ShieldAlert, BarChart3
 } from 'lucide-react';
 
 import ProfileSettingsModal from './ProfileSettingsModal';
@@ -189,6 +190,29 @@ const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
               <BookOpen size={18} />
               {!isCollapsed && <span>Library</span>}
             </NavLink>
+            <NavLink 
+              to="/analytics" 
+              className={({ isActive }) => `menu-item ${isActive ? 'active' : ''}`}
+              title="Analytics"
+            >
+              <BarChart3 size={18} />
+              {!isCollapsed && <span>Analytics</span>}
+            </NavLink>
+            {user?.is_admin && (
+              <NavLink
+                to="/admin"
+                className={({ isActive }) => `menu-item admin-menu-item ${isActive ? 'active' : ''}`}
+                title="Admin Dashboard"
+              >
+                <ShieldAlert size={18} />
+                {!isCollapsed && (
+                  <>
+                    <span>Admin</span>
+                    <span className="badge-admin">Admin</span>
+                  </>
+                )}
+              </NavLink>
+            )}
           </div>
 
           {!isCollapsed && (

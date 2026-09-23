@@ -5,36 +5,45 @@ const AuthContext = createContext();
 
 export const useAuth = () => useContext(AuthContext);
 
+const API_BASE = 'http://localhost:8000';
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token') || null);
   const [loading, setLoading] = useState(true);
 
-  // You might want to decode the token or call a /me endpoint here
+  // Fetch full user profile from /me to get is_admin and other fields
   useEffect(() => {
     if (token) {
       localStorage.setItem('token', token);
-      // For now, we will decode a mock user from token, ideally call API to get user profile
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        const savedPlan = localStorage.getItem(`user_plan_${payload.sub}`) || 'free';
-        setUser({ email: payload.sub, plan: savedPlan });
-      } catch (e) {
-        setUser(null);
-      }
+      axios
+        .get(`${API_BASE}/api/v1/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        .then((res) => {
+          const savedPlan = localStorage.getItem(`user_plan_${res.data.email}`) || 'free';
+          setUser({ ...res.data, plan: savedPlan });
+        })
+        .catch(() => {
+          // Token is invalid/expired – clear it
+          localStorage.removeItem('token');
+          setToken(null);
+          setUser(null);
+        })
+        .finally(() => setLoading(false));
     } else {
       localStorage.removeItem('token');
       setUser(null);
+      setLoading(false);
     }
-    setLoading(false);
   }, [token]);
 
   const updateUserPlan = (newPlan) => {
     if (user?.email) {
       localStorage.setItem(`user_plan_${user.email}`, newPlan);
-      setUser(prev => ({ ...prev, plan: newPlan }));
+      setUser((prev) => ({ ...prev, plan: newPlan }));
     } else {
-      setUser(prev => ({ ...prev, plan: newPlan }));
+      setUser((prev) => ({ ...prev, plan: newPlan }));
     }
   };
 
@@ -42,13 +51,13 @@ export const AuthProvider = ({ children }) => {
     const formData = new URLSearchParams();
     formData.append('username', email);
     formData.append('password', password);
-    const response = await axios.post('http://localhost:8000/api/v1/auth/login', formData);
+    const response = await axios.post(`${API_BASE}/api/v1/auth/login`, formData);
     setToken(response.data.access_token);
     return response.data;
   };
 
   const register = async (email, password) => {
-    const response = await axios.post('http://localhost:8000/api/v1/auth/register', { email, password });
+    const response = await axios.post(`${API_BASE}/api/v1/auth/register`, { email, password });
     return response.data;
   };
 

@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api.routes.prediction import router as prediction_router
 from api.routes.auth import router as auth_router
+from api.routes.admin import router as admin_router
 from api.database import engine
 from api.models import Base
 
@@ -31,6 +32,7 @@ app.add_middleware(
 
 app.include_router(auth_router, prefix="/api/v1/auth")
 app.include_router(prediction_router, prefix="/api/v1/predictions")
+app.include_router(admin_router, prefix="/api/v1/admin")
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
