@@ -263,6 +263,19 @@ const PredictionResultCard = ({ prediction, onClose }) => {
 
           {showDetails && (
             <div className="result-v2-details">
+              {/* Multimodal AI Reasoning Breakdown */}
+              {prediction.ai_analysis && (
+                <div className="result-v2-detail-section" style={{ borderLeft: '3px solid #10b981', paddingLeft: '12px', background: 'rgba(16, 185, 129, 0.04)', borderRadius: '4px', padding: '10px' }}>
+                  <div className="result-v2-detail-title" style={{ color: '#10b981' }}>
+                    <Sprout size={14} />
+                    Gemini AI Pathologist Assessment
+                  </div>
+                  <div style={{ fontSize: '0.86rem', lineHeight: '1.5', whiteSpace: 'pre-line', color: 'var(--text-main, #333)' }}>
+                    {prediction.ai_analysis}
+                  </div>
+                </div>
+              )}
+
               {/* Symptoms */}
               <div className="result-v2-detail-section">
                 <div className="result-v2-detail-title">
@@ -322,12 +335,76 @@ const PredictionResultCard = ({ prediction, onClose }) => {
             <AlertCircle size={12} />
             Results are AI predictions. Always confirm with an agronomist.
           </span>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {prediction.id && (
+              <a
+                href={`http://localhost:8000/api/v1/predictions/${prediction.id}/pdf`}
+                target="_blank"
+                rel="noreferrer"
+                className="btn-secondary-sm"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 12px', fontSize: '0.82rem', textDecoration: 'none' }}
+              >
+                <FileText size={14} />
+                <span>Export PDF</span>
+              </a>
+            )}
+            <button
+              className="result-v2-done-btn"
+              style={{ background: info.color }}
+              onClick={onClose}
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── AI Agronomist Chat Card ────────────────────────────────────────────────
+const AgronomistChatCard = ({ chat, onClose }) => {
+  return (
+    <div className="prediction-result-modal-overlay" onClick={onClose}>
+      <div 
+        className="prediction-result-card-v2" 
+        onClick={e => e.stopPropagation()}
+        style={{ borderColor: 'rgba(16, 185, 129, 0.4)', maxWidth: '640px' }}
+      >
+        <div className="result-v2-banner" style={{ background: 'rgba(16, 185, 129, 0.08)', borderBottom: '1px solid rgba(16, 185, 129, 0.2)' }}>
+          <div className="result-v2-banner-icon" style={{ background: '#10b981' }}>
+            <Sprout size={24} color="#fff" />
+          </div>
+          <div className="result-v2-banner-text">
+            <div className="result-v2-status-label" style={{ color: '#10b981' }}>
+              🌾 Dr. Spud • AI Potato Agronomist
+            </div>
+            <div className="result-v2-disease-name" style={{ fontSize: '1.05rem' }}>
+              {chat.user_question}
+            </div>
+          </div>
+          <button className="result-v2-close" onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="result-v2-body" style={{ maxHeight: '420px', overflowY: 'auto' }}>
+          <div style={{ fontSize: '0.92rem', lineHeight: '1.6', whiteSpace: 'pre-line', color: 'var(--text-main, #222)' }}>
+            {chat.reply}
+          </div>
+        </div>
+
+        <div className="result-v2-footer">
+          <span className="result-v2-footer-note">
+            <AlertCircle size={12} />
+            Powered by Google Gemini 2.0 / 1.5 Pro Multimodal Agronomy Engine.
+          </span>
           <button
             className="result-v2-done-btn"
-            style={{ background: info.color }}
+            style={{ background: '#10b981' }}
             onClick={onClose}
           >
-            Done
+            Got It
           </button>
         </div>
       </div>
@@ -339,10 +416,10 @@ const PredictionResultCard = ({ prediction, onClose }) => {
 
 const UserDashboard = () => {
   const { token } = useAuth();
-  const [latestPrediction, setLatestPrediction] = useState(null);
+  const [latestResult, setLatestResult] = useState(null);
 
   const handlePredictionComplete = (result) => {
-    setLatestPrediction(result);
+    setLatestResult(result);
     window.dispatchEvent(new Event('taskHistoryUpdated'));
   };
 
@@ -350,10 +427,17 @@ const UserDashboard = () => {
     <div className="dashboard-container">
       <PromptInput onPredictionComplete={handlePredictionComplete} />
 
-      {latestPrediction && (
+      {latestResult && latestResult.type === 'prediction' && (
         <PredictionResultCard
-          prediction={latestPrediction}
-          onClose={() => setLatestPrediction(null)}
+          prediction={latestResult}
+          onClose={() => setLatestResult(null)}
+        />
+      )}
+
+      {latestResult && latestResult.type === 'chat' && (
+        <AgronomistChatCard
+          chat={latestResult}
+          onClose={() => setLatestResult(null)}
         />
       )}
     </div>
@@ -361,3 +445,4 @@ const UserDashboard = () => {
 };
 
 export default UserDashboard;
+

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
+import axios from 'axios';
 import { 
   X, Check, Zap, Shield, Sparkles, CreditCard, 
-  CheckCircle2, ArrowRight, Lock, Building, Smartphone, Globe
+  CheckCircle2, ArrowRight, Lock, Building, Smartphone, Globe, ExternalLink
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -19,7 +20,7 @@ const PLANS = [
       'Standard ResNet-50 AI model',
       'Basic disease identification (Blight/Healthy)',
       'Community forum support',
-      'Single workspace project'
+      '2 field projects'
     ],
     buttonText: 'Current Plan',
     disabled: true
@@ -34,11 +35,11 @@ const PLANS = [
     description: 'Designed for active commercial growers, agronomists, and farm inspectors.',
     features: [
       'Unlimited high-resolution leaf scans',
-      'Potato AI 2.0 Pro (Max) Reasoning Engine',
+      'Multimodal Gemini 2.0 / 1.5 Pro Reasoning Engine',
       'Full treatment & fungicide prescription guides',
       'Exportable PDF & CSV agronomic field reports',
       'Unlimited field project folders & plot tracking',
-      'Priority offline model access'
+      'Direct Agronomist AI consultation chat'
     ],
     buttonText: 'Upgrade to Pro',
     disabled: false
@@ -65,13 +66,14 @@ const PLANS = [
 ];
 
 const UpgradeModal = ({ isOpen, onClose }) => {
-  const { user, updateUserPlan } = useAuth();
+  const { user, token, updateUserPlan, refreshUserProfile } = useAuth();
   
   const [selectedPlan, setSelectedPlan] = useState(PLANS[1]);
   const [billingCycle, setBillingCycle] = useState('monthly'); // 'monthly' | 'yearly'
   const [step, setStep] = useState('plans'); // 'plans' | 'checkout' | 'success'
-  const [paymentMethod, setPaymentMethod] = useState('card'); // 'card' | 'momo' | 'paypal'
+  const [paymentMethod, setPaymentMethod] = useState('card'); // 'card' | 'momo'
   const [isProcessing, setIsProcessing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   // Form states
   const [cardName, setCardName] = useState('');
@@ -94,28 +96,62 @@ const UpgradeModal = ({ isOpen, onClose }) => {
     return basePriceStr;
   };
 
-  const handleSelectPlan = (plan) => {
+  const handleSelectPlan = async (plan) => {
     setSelectedPlan(plan);
+    setErrorMessage('');
+    
+    // If user clicks Upgrade, we can offer Stripe Checkout directly
     setStep('checkout');
   };
 
-  const handleProcessPayment = (e) => {
-    e.preventDefault();
+  const handleStripeHostedCheckout = async () => {
+    if (!token) {
+      setErrorMessage('Please log in first to upgrade your subscription.');
+      return;
+    }
     setIsProcessing(true);
+    setErrorMessage('');
+    try {
+      const response = await axios.post(
+        'http://localhost:8000/api/v1/payments/create-checkout-session',
+        {
+          plan_id: selectedPlan.id,
+          success_url: window.location.origin + '/dashboard?upgraded=true',
+          cancel_url: window.location.origin + '/dashboard?canceled=true',
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
 
-    setTimeout(() => {
-      setIsProcessing(false);
-      if (updateUserPlan) {
-        updateUserPlan(selectedPlan.id);
+      if (response.data.checkout_url) {
+        if (response.data.is_mock) {
+          // In test mode, instantly update local state and show success
+          updateUserPlan(selectedPlan.id);
+          if (refreshUserProfile) refreshUserProfile();
+          setStep('success');
+        } else {
+          // Redirect to real Stripe Checkout URL
+          window.location.href = response.data.checkout_url;
+        }
       }
-      setStep('success');
-    }, 1800);
+    } catch (err) {
+      setErrorMessage(err.response?.data?.detail || 'Failed to initiate Stripe Checkout session.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleProcessPayment = async (e) => {
+    e.preventDefault();
+    await handleStripeHostedCheckout();
   };
 
   const handleFinish = () => {
     setStep('plans');
     onClose();
   };
+
 
   return (
     <div className="settings-modal-overlay" onClick={onClose}>

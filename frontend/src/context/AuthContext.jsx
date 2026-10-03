@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import axios from 'axios';
 
 const AuthContext = createContext();
@@ -12,39 +12,45 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem('token') || null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch full user profile from /me to get is_admin and other fields
+  const fetchUserProfile = useCallback(async (authToken) => {
+    if (!authToken) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+    try {
+      const res = await axios.get(`${API_BASE}/api/v1/auth/me`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      setUser(res.data);
+    } catch {
+      localStorage.removeItem('token');
+      setToken(null);
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (token) {
       localStorage.setItem('token', token);
-      axios
-        .get(`${API_BASE}/api/v1/auth/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        .then((res) => {
-          const savedPlan = localStorage.getItem(`user_plan_${res.data.email}`) || 'free';
-          setUser({ ...res.data, plan: savedPlan });
-        })
-        .catch(() => {
-          // Token is invalid/expired – clear it
-          localStorage.removeItem('token');
-          setToken(null);
-          setUser(null);
-        })
-        .finally(() => setLoading(false));
+      fetchUserProfile(token);
     } else {
       localStorage.removeItem('token');
       setUser(null);
       setLoading(false);
     }
-  }, [token]);
+  }, [token, fetchUserProfile]);
+
+  const refreshUserProfile = async () => {
+    if (token) {
+      await fetchUserProfile(token);
+    }
+  };
 
   const updateUserPlan = (newPlan) => {
-    if (user?.email) {
-      localStorage.setItem(`user_plan_${user.email}`, newPlan);
-      setUser((prev) => ({ ...prev, plan: newPlan }));
-    } else {
-      setUser((prev) => ({ ...prev, plan: newPlan }));
-    }
+    setUser((prev) => (prev ? { ...prev, plan: newPlan } : prev));
   };
 
   const login = async (email, password) => {
@@ -62,12 +68,26 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
+    localStorage.removeItem('token');
     setToken(null);
+    setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout, loading, updateUserPlan }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        login,
+        register,
+        logout,
+        loading,
+        updateUserPlan,
+        refreshUserProfile,
+      }}
+    >
       {!loading && children}
     </AuthContext.Provider>
   );
 };
+

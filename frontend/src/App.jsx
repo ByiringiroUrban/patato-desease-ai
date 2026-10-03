@@ -47,7 +47,7 @@ const App = () => {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            
+
             <Route path="/" element={
               <AppLayout>
                 <UserDashboard />
@@ -67,7 +67,7 @@ const App = () => {
                 </AppLayout>
               </ProtectedRoute>
             } />
-            
+
             <Route path="/analytics" element={
               <ProtectedRoute>
                 <AppLayout>
@@ -83,7 +83,7 @@ const App = () => {
                 </AppLayout>
               </ProtectedRoute>
             } />
-            
+
             <Route path="/admin" element={
               <ProtectedRoute>
                 <AppLayout>
@@ -91,7 +91,7 @@ const App = () => {
                 </AppLayout>
               </ProtectedRoute>
             } />
-            
+
           </Routes>
         </AuthProvider>
       </ThemeProvider>

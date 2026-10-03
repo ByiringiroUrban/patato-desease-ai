@@ -18,9 +18,20 @@ const ProjectDetailPage = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState('');
 
-  // Load project metadata from localStorage
-  useEffect(() => {
+  const fetchProjectData = async () => {
+    if (!token) return;
     try {
+      const projRes = await axios.get(`http://localhost:8000/api/v1/projects/${projectId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setProject(projRes.data);
+
+      const scansRes = await axios.get(`http://localhost:8000/api/v1/projects/${projectId}/scans`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setProjectScans(scansRes.data);
+    } catch (e) {
+      console.warn('API load failed, trying localStorage fallback:', e);
       const savedProjects = JSON.parse(localStorage.getItem('potato_ai_projects') || '[]');
       const found = savedProjects.find(p => String(p.id) === String(projectId));
       if (found) {
@@ -28,19 +39,19 @@ const ProjectDetailPage = () => {
       } else {
         setProject({
           id: projectId,
-          name: `Project ${projectId}`,
-          description: 'Custom potato diagnostic monitoring project.',
-          createdAt: new Date().toISOString()
+          name: `Field Plot ${projectId}`,
+          description: 'Potato diagnostic monitoring plot.',
+          created_at: new Date().toISOString()
         });
       }
-
-      // Load scans associated with this project
-      const savedProjectScans = JSON.parse(localStorage.getItem(`potato_project_scans_${projectId}`) || '[]');
-      setProjectScans(savedProjectScans);
-    } catch (e) {
-      console.error('Error loading project:', e);
+      const savedScans = JSON.parse(localStorage.getItem(`potato_project_scans_${projectId}`) || '[]');
+      setProjectScans(savedScans);
     }
-  }, [projectId]);
+  };
+
+  useEffect(() => {
+    fetchProjectData();
+  }, [projectId, token]);
 
   const handleFileUpload = async (e) => {
     if (!e.target.files || !e.target.files[0]) return;
@@ -50,6 +61,7 @@ const ProjectDetailPage = () => {
 
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('project_id', projectId);
 
     try {
       const headers = { 'Content-Type': 'multipart/form-data' };
@@ -58,31 +70,39 @@ const ProjectDetailPage = () => {
       const response = await axios.post('http://localhost:8000/api/v1/predictions/predict', formData, { headers });
       
       const newScan = {
-        id: Date.now(),
-        filename: file.name,
+        id: response.data.id || Date.now(),
+        image_filename: file.name,
         predicted_class: response.data.class_name,
         confidence: response.data.confidence,
-        date: new Date().toISOString()
+        image_url: response.data.image_url,
+        created_at: new Date().toISOString()
       };
 
-      const updated = [newScan, ...projectScans];
-      setProjectScans(updated);
-      localStorage.setItem(`potato_project_scans_${projectId}`, JSON.stringify(updated));
+      setProjectScans(prev => [newScan, ...prev]);
 
       // Trigger global history sync
       window.dispatchEvent(new Event('taskHistoryUpdated'));
     } catch (err) {
-      setError('Failed to analyze and add image to project.');
+      setError(err.response?.data?.detail || 'Failed to analyze and add image to project.');
     } finally {
       setIsUploading(false);
     }
   };
 
-  const handleDeleteScan = (scanId) => {
-    const updated = projectScans.filter(s => s.id !== scanId);
-    setProjectScans(updated);
-    localStorage.setItem(`potato_project_scans_${projectId}`, JSON.stringify(updated));
+  const handleDeleteScan = async (scanId) => {
+    try {
+      if (token) {
+        await axios.delete(`http://localhost:8000/api/v1/predictions/history/${scanId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
+      setProjectScans(prev => prev.filter(s => s.id !== scanId));
+    } catch (err) {
+      console.error('Delete scan error:', err);
+      setProjectScans(prev => prev.filter(s => s.id !== scanId));
+    }
   };
+
 
   if (!project) {
     return (

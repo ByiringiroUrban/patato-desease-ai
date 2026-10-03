@@ -180,41 +180,58 @@ const PromptInput = ({ onPredictionComplete }) => {
 
   const handleSubmit = async () => {
     if (!file && !promptText.trim()) {
-      setError('Please attach a potato leaf image or enter a diagnosis prompt.');
-      return;
-    }
-
-    if (!file) {
-      setError('Please attach or capture an image of a potato leaf to run AI disease analysis.');
+      setError('Please attach a potato leaf image or enter a question for Dr. Spud (AI Agronomist).');
       return;
     }
 
     setLoading(true);
     setError('');
 
-    const formData = new FormData();
-    formData.append('file', file);
-
     try {
-      const headers = { 'Content-Type': 'multipart/form-data' };
+      const headers = {};
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
-      const response = await axios.post('http://localhost:8000/api/v1/predictions/predict', formData, { headers });
-      onPredictionComplete(response.data);
-      setFile(null);
-      setPromptText('');
+
+      if (file) {
+        // Image Analysis via PyTorch CNN + Gemini Multimodal Vision
+        const formData = new FormData();
+        formData.append('file', file);
+        if (promptText.trim()) {
+          formData.append('notes', promptText.trim());
+        }
+
+        headers['Content-Type'] = 'multipart/form-data';
+        const response = await axios.post('http://localhost:8000/api/v1/predictions/predict', formData, { headers });
+        onPredictionComplete({ ...response.data, type: 'prediction' });
+        setFile(null);
+        setPromptText('');
+      } else {
+        // Text-only Conversational Inquiry with Gemini AI Agronomist
+        const response = await axios.post('http://localhost:8000/api/v1/chat/message', { content: promptText.trim() }, { headers });
+        onPredictionComplete({
+          type: 'chat',
+          user_question: promptText.trim(),
+          reply: response.data.content,
+          created_at: response.data.created_at
+        });
+        setPromptText('');
+      }
     } catch (err) {
       if (err.response?.status === 401 && !user) {
         setShowAuthPrompt(true);
-        setError('Authentication required to process image. Please sign in or register.');
+        setError('Authentication required. Please sign in or register.');
+      } else if (err.response?.status === 429) {
+        setShowUpgradeModal(true);
+        setError(err.response?.data?.detail || 'Daily scan quota reached. Please upgrade to Pro.');
       } else {
-        setError(err.response?.data?.detail || 'Failed to analyze image.');
+        setError(err.response?.data?.detail || 'Failed to process request.');
       }
     } finally {
       setLoading(false);
     }
   };
+
 
   const setPresetPrompt = (text) => {
     setPromptText(text);

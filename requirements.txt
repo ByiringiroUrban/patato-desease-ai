@@ -20,3 +20,6 @@ python-dotenv
 passlib[bcrypt]
 PyJWT
 python-jose[cryptography]
+google-generativeai
+stripe
+reportlab

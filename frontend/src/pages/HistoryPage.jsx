@@ -100,9 +100,17 @@ const HistoryPage = () => {
             return (
               <div key={task.id} className="history-card-item">
                 <div className="history-card-left">
-                  <div className={`history-status-icon ${isHealthy ? 'healthy' : 'disease'}`}>
-                    {isHealthy ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
-                  </div>
+                  {task.image_url ? (
+                    <img 
+                      src={`http://localhost:8000${task.image_url}`} 
+                      alt="Leaf sample" 
+                      style={{ width: '48px', height: '48px', borderRadius: '8px', objectFit: 'cover', border: '1px solid var(--border-color)' }}
+                    />
+                  ) : (
+                    <div className={`history-status-icon ${isHealthy ? 'healthy' : 'disease'}`}>
+                      {isHealthy ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
+                    </div>
+                  )}
                   <div>
                     <h4 className="history-task-title">{task.predicted_class || 'Potato Diagnostic Scan'}</h4>
                     <div className="history-task-sub">
@@ -117,7 +125,18 @@ const HistoryPage = () => {
                   </div>
                 </div>
 
-                <div className="history-card-right">
+                <div className="history-card-right" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <a
+                    href={`http://localhost:8000/api/v1/predictions/${task.id}/pdf`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn-secondary-sm"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 12px', fontSize: '0.8rem', textDecoration: 'none' }}
+                  >
+                    <FileText size={14} />
+                    <span>PDF</span>
+                  </a>
+
                   <button 
                     className="delete-task-btn-lg" 
                     onClick={() => handleDeleteTask(task.id)}
@@ -131,6 +150,7 @@ const HistoryPage = () => {
             );
           })}
         </div>
+
       ) : (
         <div className="history-empty-card">
           <FileText size={40} style={{ color: 'var(--text-muted)', marginBottom: '12px' }} />

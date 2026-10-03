@@ -21,26 +21,33 @@ const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSkillsOpen, setIsSkillsOpen] = useState(false);
   
-  // Projects state initialized with local storage persistence
-  const [projects, setProjects] = useState(() => {
-    try {
-      const saved = localStorage.getItem('potato_ai_projects');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {}
-    return [
-      { id: 'field-north', name: 'North Field Plot A', description: 'Early season Russet Burbank crop monitoring' },
-      { id: 'greenhouse-1', name: 'Greenhouse Seedlings', description: 'Seed potato disease screening' }
-    ];
-  });
+  const [projects, setProjects] = useState([]);
   const [showAddProject, setShowAddProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
 
-  // Persist projects to localStorage whenever updated
-  useEffect(() => {
+
+  // Fetch projects from backend API
+  const fetchProjects = async () => {
+    if (!token) {
+      setProjects([
+        { id: 'field-north', name: 'North Field Plot A', description: 'Early season Russet Burbank crop monitoring' },
+        { id: 'greenhouse-1', name: 'Greenhouse Seedlings', description: 'Seed potato disease screening' }
+      ]);
+      return;
+    }
     try {
-      localStorage.setItem('potato_ai_projects', JSON.stringify(projects));
-    } catch (e) {}
-  }, [projects]);
+      const res = await axios.get('http://localhost:8000/api/v1/projects/', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setProjects(res.data);
+    } catch (err) {
+      console.warn('Failed to load projects from API, falling back:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchProjects();
+  }, [token]);
 
   // Search modal state
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -68,7 +75,10 @@ const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
   useEffect(() => {
     fetchUserHistory();
 
-    const handleUpdate = () => fetchUserHistory();
+    const handleUpdate = () => {
+      fetchUserHistory();
+      fetchProjects();
+    };
     window.addEventListener('taskHistoryUpdated', handleUpdate);
     return () => window.removeEventListener('taskHistoryUpdated', handleUpdate);
   }, [token]);
@@ -86,9 +96,26 @@ const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
     }
   };
 
-  const handleCreateProject = (e) => {
+  const handleCreateProject = async (e) => {
     e.preventDefault();
     if (!newProjectName.trim()) return;
+    
+    if (token) {
+      try {
+        const res = await axios.post(
+          'http://localhost:8000/api/v1/projects/',
+          { name: newProjectName.trim(), description: 'Active potato crop inspection folder.' },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setProjects(prev => [res.data, ...prev]);
+        setNewProjectName('');
+        setShowAddProject(false);
+        return;
+      } catch (err) {
+        console.error('Failed to create project via API:', err);
+      }
+    }
+
     const newProj = { 
       id: `proj-${Date.now()}`, 
       name: newProjectName.trim(),
@@ -100,11 +127,20 @@ const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
     setShowAddProject(false);
   };
 
-  const handleDeleteProject = (e, projId) => {
+  const handleDeleteProject = async (e, projId) => {
     e.stopPropagation();
+    if (token && typeof projId === 'number') {
+      try {
+        await axios.delete(`http://localhost:8000/api/v1/projects/${projId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } catch (err) {
+        console.error('Failed to delete project on API:', err);
+      }
+    }
     setProjects(prev => prev.filter(p => p.id !== projId));
-    localStorage.removeItem(`potato_project_scans_${projId}`);
   };
+
 
   const filteredTasks = realTasks.filter(task => {
     const title = task.predicted_class || task.class_name || '';

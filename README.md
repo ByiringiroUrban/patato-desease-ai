@@ -1,110 +1,76 @@
-# Potato Disease AI
+# Potato Disease AI — Multimodal Agronomy Platform
 
-A practical computer-vision project for classifying potato leaf images into disease classes.
+A commercial-grade agricultural intelligence platform combining PyTorch computer vision (ResNet-50 / CNN) with **Google Gemini 2.0 / 1.5 Pro Multimodal Vision & Reasoning**, Stripe subscription payments, field project management, and automated PDF agronomic report generation.
 
-The project has two learning tracks:
+---
 
-1. A small neural network implemented with NumPy from scratch for learning the mathematics.
-2. A practical CNN implemented with PyTorch for real image classification.
+## 🌟 Key Capabilities
 
-## Expected dataset
+1. **Multimodal Leaf Pathology Diagnosis**:
+   - PyTorch CNN identifies disease classes (*Early Blight*, *Late Blight*, *Healthy*).
+   - Google Gemini 2.0 / 1.5 Pro provides deep visual symptom verification, severity estimates, and step-by-step IPM treatment plans.
+2. **Dr. Spud — AI Potato Agronomist Chat**:
+   - Ask agronomy questions about weather risks, FRAC fungicide rotation codes, dosages, soil nutrients, and organic treatments.
+3. **Automated Agronomic PDF Certificates**:
+   - One-click exportable PDF field diagnostic reports with chemical prescriptions, safety advisories, and agronomist disclaimers.
+4. **Commercial Stripe Subscriptions**:
+   - Built-in Stripe Checkout for **Pro Agronomist ($19/mo)** and **Enterprise ($79/mo)** plans with real-time webhooks.
+5. **Field Plot & Multi-Project Tracking**:
+   - Organize field inspections by plot or greenhouse with database-persisted image archives.
 
-Put your dataset under:
+---
 
-```text
-data/raw/
-├── Potato___Early_blight/
-├── Potato___Late_blight/
-└── Potato___healthy/
+## 🚀 Quick Setup
+
+### 1. Environment Configuration (`.env`)
+
+Create or update your `.env` file with your credentials:
+
+```env
+DATABASE_URL=postgresql://user:pass@host/dbname
+SECRET_KEY=your-secure-jwt-secret
+GEMINI_API_KEY=your-gemini-api-key
+STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key
+STRIPE_PUBLISHABLE_KEY=pk_test_your_stripe_publishable_key
+STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
 ```
 
-The code also works with other class-folder names.
-
-## Setup
-
-Windows PowerShell:
+### 2. Backend Installation & Run
 
 ```powershell
-python -m venv venv
+# Activate Python Virtual Environment
 venv\Scripts\Activate.ps1
+
+# Install requirements
 pip install -r requirements.txt
+
+# Start FastAPI server
+uvicorn api.main:app --reload --port 8000
 ```
 
-If PowerShell blocks activation, use:
+Interactive API documentation available at: `http://localhost:8000/docs`
+
+### 3. Frontend Web App
 
 ```powershell
-venv\Scripts\activate.bat
+cd frontend
+npm install
+npm run dev
 ```
 
-## 1. Inspect dataset
+Open `http://localhost:5173` in your browser.
+
+---
+
+## 🧪 Running Tests
 
 ```powershell
-python main.py inspect
+.\venv\Scripts\python.exe -m pytest
 ```
 
-## 2. Create train/validation/test splits
+---
 
-```powershell
-python main.py split
-```
+## 🔒 Security & Disclaimers
 
-This creates:
+- AI predictions and dosages are generated to assist farm scouting. Always calibrate chemical applications according to local pesticide regulatory guidelines.
 
-```text
-data/splits/
-├── train/
-├── val/
-└── test/
-```
-
-Default split: 70% train, 15% validation, 15% test.
-
-## 3. Train the practical CNN
-
-```powershell
-python main.py train
-```
-
-The best model is saved to:
-
-```text
-models/potato_model.pth
-```
-
-## 4. Evaluate
-
-```powershell
-python main.py evaluate
-```
-
-## 5. Predict one image
-
-```powershell
-python main.py predict path/to/leaf.jpg
-```
-
-## 6. Run API
-
-```powershell
-uvicorn api.main:app --reload
-```
-
-Open:
-
-```text
-http://127.0.0.1:8000/docs
-```
-
-Then use `POST /api/v1/predict`.
-
-## 7. Run tests
-
-```powershell
-pytest
-```
-
-## Important
-
-Do not put the dataset itself in Git if it is large. Keep the dataset locally or use a dataset storage service.
-
-This project is designed for learning and experimentation. It should not be used as the sole basis for agricultural treatment decisions without field validation.
