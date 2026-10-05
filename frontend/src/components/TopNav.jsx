@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { 
   Moon, Sun, LogOut, Zap, ChevronDown, LogIn, UserPlus, 
   Sidebar as SidebarIcon, Settings, Share2, MoreHorizontal, 
-  Check, BookOpen, BarChart3, User, Sparkles
+  Check, BookOpen, BarChart3
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import ProfileSettingsModal from './ProfileSettingsModal';
@@ -22,7 +22,6 @@ const TopNav = ({ isSidebarCollapsed, onToggleSidebar }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState('Potato AI 1.6 Lite');
-  const [showShareToast, setShowShareToast] = useState(false);
   const menuRef = useRef(null);
   const modelDropdownRef = useRef(null);
 
@@ -56,25 +55,24 @@ const TopNav = ({ isSidebarCollapsed, onToggleSidebar }) => {
     {
       id: 'lite',
       name: 'Potato AI 1.6 Lite',
-      badge: 'Default',
-      badgeColor: '#22c55e',
-      description: 'Ultra-fast ResNet-50 vision model optimized for rapid field diagnosis and leaf scanning.'
+      shortTag: 'Default',
+      color: '#10b981'
     },
     {
       id: 'pro',
       name: 'Potato AI 2.0 Pro (Max)',
-      badge: 'High Accuracy',
-      badgeColor: '#3b82f6',
-      description: 'Deep pathology reasoning with integrated micro-symptom triage and treatment protocols.'
+      shortTag: 'Pro',
+      color: '#3b82f6'
     },
     {
       id: 'edge',
       name: 'MobileNet Offline Edge',
-      badge: 'Lightweight',
-      badgeColor: '#f59e0b',
-      description: 'Compressed model for low-bandwidth rural connections and instant local inferences.'
+      shortTag: 'Edge',
+      color: '#f59e0b'
     }
   ];
+
+  const currentModel = modelsList.find(m => m.name === selectedModel) || modelsList[0];
 
   return (
     <>
@@ -89,69 +87,53 @@ const TopNav = ({ isSidebarCollapsed, onToggleSidebar }) => {
               <SidebarIcon size={18} />
             </button>
           )}
-          <div 
-            className={`model-selector ${isModelDropdownOpen ? 'active' : ''}`} 
-            onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)} 
-            style={{ cursor: 'pointer' }}
-            title="Switch Potato AI Model"
-          >
-            <span className="model-name">{selectedModel}</span>
-            <ChevronDown 
-              size={14} 
-              className="model-arrow" 
-              style={{ 
-                transform: isModelDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                transition: 'transform 0.2s ease'
-              }} 
-            />
-          </div>
 
-          {/* Model Switcher Dropdown Popover */}
+          {/* Simple Small Model Selector Button */}
+          <button 
+            className={`model-select-btn ${isModelDropdownOpen ? 'open' : ''}`} 
+            onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)} 
+            type="button"
+            aria-expanded={isModelDropdownOpen}
+          >
+            <span 
+              className="model-select-dot" 
+              style={{ backgroundColor: currentModel.color }} 
+            />
+            <span className="model-select-title">{selectedModel}</span>
+            <ChevronDown size={13} className="model-select-arrow" />
+          </button>
+
+          {/* Compact Minimal Dropdown Menu */}
           {isModelDropdownOpen && (
-            <div className="topbar-model-dropdown">
-              <div className="topbar-model-header">
-                <span className="topbar-model-label">Model Selection</span>
-              </div>
-              <div className="topbar-model-list">
-                {modelsList.map((m) => {
-                  const isSelected = selectedModel === m.name;
-                  return (
-                    <div 
-                      key={m.id}
-                      className={`topbar-model-item ${isSelected ? 'selected' : ''}`}
-                      onClick={() => {
-                        setSelectedModel(m.name);
-                        setIsModelDropdownOpen(false);
-                      }}
-                    >
-                      <div className="topbar-model-info">
-                        <div className="topbar-model-title-row">
-                          <span className="topbar-model-name">{m.name}</span>
-                          <span 
-                            className="topbar-model-badge" 
-                            style={{ 
-                              backgroundColor: `${m.badgeColor}18`, 
-                              color: m.badgeColor,
-                              borderColor: `${m.badgeColor}35`
-                            }}
-                          >
-                            {m.badge}
-                          </span>
-                        </div>
-                        <p className="topbar-model-desc">{m.description}</p>
-                      </div>
-                      {isSelected && (
-                        <div className="topbar-model-check">
-                          <Check size={16} />
-                        </div>
-                      )}
+            <div className="model-mini-dropdown" role="menu">
+              {modelsList.map((m) => {
+                const isSelected = selectedModel === m.name;
+                return (
+                  <button
+                    key={m.id}
+                    className={`model-mini-item ${isSelected ? 'selected' : ''}`}
+                    onClick={() => {
+                      setSelectedModel(m.name);
+                      setIsModelDropdownOpen(false);
+                    }}
+                    type="button"
+                    role="menuitem"
+                  >
+                    <div className="model-mini-left">
+                      <span className="model-mini-dot" style={{ backgroundColor: m.color }} />
+                      <span className="model-mini-name">{m.name}</span>
                     </div>
-                  );
-                })}
-              </div>
+                    <div className="model-mini-right">
+                      <span className="model-mini-badge">{m.shortTag}</span>
+                      {isSelected && <Check size={13} className="model-mini-check" />}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
+
 
         <div className="topbar-actions" style={{ position: 'relative' }} ref={menuRef}>
           {/* Share Button */}
@@ -249,14 +231,6 @@ const TopNav = ({ isSidebarCollapsed, onToggleSidebar }) => {
           )}
         </div>
       </header>
-
-      {/* Share Toast Banner */}
-      {showShareToast && (
-        <div className="share-toast">
-          <Check size={18} />
-          <span>Workspace link copied to clipboard!</span>
-        </div>
-      )}
 
       {/* Share Modal */}
       <ShareModal 

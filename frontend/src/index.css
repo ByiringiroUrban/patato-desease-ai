@@ -510,119 +510,155 @@ button {
   margin-right: 4px;
 }
 
-.model-selector {
-  display: flex;
+/* ==========================================================================
+   Simple, Small & Clean Model Selector Dropdown
+   ========================================================================== */
+
+.model-select-btn {
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 8px;
-  cursor: pointer;
+  gap: 7px;
+  padding: 4px 10px;
+  height: 30px;
+  border-radius: 7px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-card);
   color: var(--text-main);
+  font-family: inherit;
+  font-size: 0.81rem;
   font-weight: 500;
-  font-size: 0.9rem;
-  transition: background-color 0.15s ease;
+  cursor: pointer;
   user-select: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
-.model-selector:hover, .model-selector.active {
+.model-select-btn:hover,
+.model-select-btn.open {
   background-color: var(--bg-pill);
+  border-color: var(--border-color);
 }
 
-/* ChatGPT Style Topbar Model Dropdown */
-.topbar-model-dropdown {
+.model-select-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.model-select-title {
+  white-space: nowrap;
+}
+
+.model-select-arrow {
+  color: var(--text-muted);
+  transition: transform 0.18s ease;
+  margin-left: 1px;
+}
+
+.model-select-btn.open .model-select-arrow {
+  transform: rotate(180deg);
+}
+
+/* Compact Dropdown Popover */
+.model-mini-dropdown {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + 5px);
   left: 0;
-  width: 320px;
+  width: 240px;
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: 14px;
-  padding: 8px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  border-radius: 9px;
+  padding: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
   z-index: 1000;
-  animation: popover-fade-in 0.16s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   flex-direction: column;
+  gap: 2px;
+  animation: mini-drop-in 0.12s ease-out;
 }
 
-.topbar-model-header {
-  padding: 8px 10px 6px;
-  border-bottom: 1px solid var(--border-color);
-  margin-bottom: 4px;
+:root.dark .model-mini-dropdown {
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
 }
 
-.topbar-model-label {
-  font-size: 0.74rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
+@keyframes mini-drop-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.topbar-model-list {
+.model-mini-item {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.topbar-model-item {
-  display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 10px;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: 0.79rem;
+  font-weight: 450;
+  text-align: left;
   cursor: pointer;
-  transition: all 0.15s ease;
-  border: 1px solid transparent;
+  transition: background-color 0.12s ease;
 }
 
-.topbar-model-item:hover {
+.model-mini-item:hover {
   background-color: var(--bg-pill-hover);
 }
 
-.topbar-model-item.selected {
-  background-color: rgba(59, 130, 246, 0.08);
-  border-color: rgba(59, 130, 246, 0.25);
+.model-mini-item.selected {
+  font-weight: 550;
+  background-color: var(--bg-pill);
 }
 
-.topbar-model-info {
-  flex: 1;
-}
-
-.topbar-model-title-row {
+.model-mini-left {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 3px;
+  gap: 7px;
+  min-width: 0;
+  overflow: hidden;
 }
 
-.topbar-model-name {
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: var(--text-main);
-}
-
-.topbar-model-badge {
-  font-size: 0.68rem;
-  font-weight: 600;
-  padding: 1px 6px;
-  border-radius: 6px;
-  border: 1px solid;
-}
-
-.topbar-model-desc {
-  font-size: 0.74rem;
-  color: var(--text-muted);
-  margin: 0;
-  line-height: 1.35;
-}
-
-.topbar-model-check {
-  color: #3b82f6;
-  margin-top: 2px;
+.model-mini-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
   flex-shrink: 0;
 }
+
+.model-mini-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.model-mini-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.model-mini-badge {
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-color);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.model-mini-check {
+  color: var(--accent-color);
+  flex-shrink: 0;
+}
+
+
 
 .topbar-actions {
   display: flex;

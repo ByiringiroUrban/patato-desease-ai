@@ -67,13 +67,15 @@ def send_chat_message(
         return bot_msg
     else:
         # Unauthenticated temporary return
-        from datetime import datetime
+        from datetime import datetime, timezone
         return ChatMessageResponse(
             id=0,
             role="assistant",
             content=ai_reply,
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
+
+
 
 @router.get("/sessions", response_model=List[ChatSessionResponse])
 def get_user_sessions(
