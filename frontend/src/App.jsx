@@ -6,6 +6,8 @@ import Sidebar from './components/Sidebar';
 import TopNav from './components/TopNav';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import UserDashboard from './pages/UserDashboard';
 import HistoryPage from './pages/HistoryPage';
 import AdminDashboard from './pages/AdminDashboard';
@@ -47,6 +49,8 @@ const App = () => {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
 
             <Route path="/" element={
               <AppLayout>

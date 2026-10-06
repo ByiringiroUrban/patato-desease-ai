@@ -1,5 +1,7 @@
 import os
 import bcrypt
+import smtplib
+from email.message import EmailMessage
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
@@ -9,9 +11,52 @@ from sqlalchemy.orm import Session
 from api.database import get_db
 from api.models import User
 from dotenv import load_dotenv
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
 
 load_dotenv()
 
+SMTP_USER = os.getenv("SMTP_USER")
+SMTP_PASS = os.getenv("SMTP_PASS")
+SMTP_FROM = os.getenv("SMTP_FROM")
+
+cloudinary.config(
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
+    secure=True
+)
+
+def send_reset_email(to_email: str, otp: str):
+    msg = EmailMessage()
+    msg['Subject'] = 'Your Password Reset OTP'
+    msg['From'] = SMTP_FROM
+    msg['To'] = to_email
+    
+    msg.set_content(f"You requested a password reset.\n\nYour One-Time Password (OTP) is: {otp}\n\nThis OTP will expire in 15 minutes. If you did not request this, please ignore this email.")
+    
+    try:
+        with smtplib.SMTP("smtp.gmail.com", 587) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.send_message(msg)
+    except Exception as e:
+        print(f"Failed to send email: {e}")
+
+def upload_profile_image(file_content, public_id=None):
+    try:
+        response = cloudinary.uploader.upload(
+            file_content,
+            public_id=public_id,
+            folder="profile_images",
+            overwrite=True,
+            resource_type="image"
+        )
+        return response.get("secure_url")
+    except Exception as e:
+        print(f"Cloudinary upload error: {e}")
+        return None
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-potato-disease")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30 * 24 * 60  # 30 days for convenience

@@ -16,6 +16,9 @@ class User(Base):
     stripe_subscription_id = Column(String, nullable=True)
     daily_scans_count = Column(Integer, default=0)
     last_scan_date = Column(DateTime(timezone=True), nullable=True)
+    profile_image = Column(String, nullable=True)
+    reset_otp = Column(String, nullable=True)
+    reset_otp_expiry = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     predictions = relationship("PredictionHistory", back_populates="user", cascade="all, delete-orphan")

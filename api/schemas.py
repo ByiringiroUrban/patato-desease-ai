@@ -20,9 +20,18 @@ class UserResponse(BaseModel):
     plan: Optional[str] = "free"
     subscription_status: Optional[str] = "active"
     daily_scans_count: Optional[int] = 0
+    profile_image: Optional[str] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    otp: str
+    new_password: str
 
 class PredictionResponse(BaseModel):
     id: Optional[int] = None

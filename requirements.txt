@@ -26,3 +26,4 @@ python-jose[cryptography]
 google-generativeai
 stripe
 reportlab
+cloudinary
