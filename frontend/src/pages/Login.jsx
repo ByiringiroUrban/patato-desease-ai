@@ -2,14 +2,32 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import { GoogleLogin } from '@react-oauth/google';
 
 const Login = () => {
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    setError('');
+    setLoading(true);
+    try {
+      if (loginWithGoogle) {
+        await loginWithGoogle(credentialResponse.credential);
+        navigate('/');
+      } else {
+        setError('Google login not configured');
+      }
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to login with Google');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -63,6 +81,23 @@ const Login = () => {
             {loading ? 'Logging in...' : 'Sign In'}
           </button>
         </form>
+
+        <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0' }}>
+          <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-color)' }}></div>
+          <span style={{ margin: '0 10px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>or</span>
+          <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-color)' }}></div>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => setError('Google Login Failed')}
+            useOneTap
+            shape="rectangular"
+            theme="outline"
+          />
+        </div>
+
         <div className="auth-links">
           Don't have an account? <Link to="/register">Sign up</Link>
         </div>

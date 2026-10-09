@@ -29,10 +29,7 @@ const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
   // Fetch projects from backend API
   const fetchProjects = async () => {
     if (!token) {
-      setProjects([
-        { id: 'field-north', name: 'North Field Plot A', description: 'Early season Russet Burbank crop monitoring' },
-        { id: 'greenhouse-1', name: 'Greenhouse Seedlings', description: 'Seed potato disease screening' }
-      ]);
+      setProjects([]);
       return;
     }
     try {
@@ -98,47 +95,33 @@ const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
 
   const handleCreateProject = async (e) => {
     e.preventDefault();
-    if (!newProjectName.trim()) return;
+    if (!token || !newProjectName.trim()) return;
     
-    if (token) {
-      try {
-        const res = await axios.post(
-          'http://localhost:8000/api/v1/projects/',
-          { name: newProjectName.trim(), description: 'Active potato crop inspection folder.' },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        setProjects(prev => [res.data, ...prev]);
-        setNewProjectName('');
-        setShowAddProject(false);
-        return;
-      } catch (err) {
-        console.error('Failed to create project via API:', err);
-      }
+    try {
+      const res = await axios.post(
+        'http://localhost:8000/api/v1/projects/',
+        { name: newProjectName.trim(), description: 'Active potato crop inspection folder.' },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setProjects(prev => [res.data, ...prev]);
+      setNewProjectName('');
+      setShowAddProject(false);
+    } catch (err) {
+      console.error('Failed to create project via API:', err);
     }
-
-    const newProj = { 
-      id: `proj-${Date.now()}`, 
-      name: newProjectName.trim(),
-      description: 'Active potato crop inspection folder.',
-      createdAt: new Date().toISOString()
-    };
-    setProjects(prev => [newProj, ...prev]);
-    setNewProjectName('');
-    setShowAddProject(false);
   };
 
   const handleDeleteProject = async (e, projId) => {
     e.stopPropagation();
-    if (token && typeof projId === 'number') {
-      try {
-        await axios.delete(`http://localhost:8000/api/v1/projects/${projId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-      } catch (err) {
-        console.error('Failed to delete project on API:', err);
-      }
+    if (!token || typeof projId !== 'number') return;
+    try {
+      await axios.delete(`http://localhost:8000/api/v1/projects/${projId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setProjects(prev => prev.filter(p => p.id !== projId));
+    } catch (err) {
+      console.error('Failed to delete project on API:', err);
     }
-    setProjects(prev => prev.filter(p => p.id !== projId));
   };
 
 
@@ -257,13 +240,15 @@ const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
               <div className="sidebar-section">
                 <div className="section-title">
                   <span>Projects</span>
-                  <button 
-                    className="icon-btn-xs" 
-                    onClick={() => setShowAddProject(!showAddProject)} 
-                    title="Add Project Folder"
-                  >
-                    <Plus size={14} />
-                  </button>
+                  {token && (
+                    <button 
+                      className="icon-btn-xs" 
+                      onClick={() => setShowAddProject(!showAddProject)} 
+                      title="Add Project Folder"
+                    >
+                      <Plus size={14} />
+                    </button>
+                  )}
                 </div>
 
                 {showAddProject && (

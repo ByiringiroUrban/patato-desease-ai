@@ -67,6 +67,12 @@ export const AuthProvider = ({ children }) => {
     return response.data;
   };
 
+  const loginWithGoogle = async (credential) => {
+    const response = await axios.post(`${API_BASE}/api/v1/auth/google`, { token: credential });
+    setToken(response.data.access_token);
+    return response.data;
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     setToken(null);
@@ -80,6 +86,7 @@ export const AuthProvider = ({ children }) => {
         token,
         login,
         register,
+        loginWithGoogle,
         logout,
         loading,
         updateUserPlan,

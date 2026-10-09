@@ -2,14 +2,32 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import { GoogleLogin } from '@react-oauth/google';
 
 const Register = () => {
-  const { register } = useAuth();
+  const { register, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    setError('');
+    setLoading(true);
+    try {
+      if (loginWithGoogle) {
+        await loginWithGoogle(credentialResponse.credential);
+        navigate('/');
+      } else {
+        setError('Google login not configured');
+      }
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to register with Google');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -61,6 +79,24 @@ const Register = () => {
             {loading ? 'Creating...' : 'Sign Up'}
           </button>
         </form>
+
+        <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0' }}>
+          <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-color)' }}></div>
+          <span style={{ margin: '0 10px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>or</span>
+          <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-color)' }}></div>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => setError('Google Registration Failed')}
+            useOneTap
+            shape="rectangular"
+            theme="outline"
+            text="signup_with"
+          />
+        </div>
+
         <div className="auth-links">
           Already have an account? <Link to="/login">Sign in</Link>
         </div>
